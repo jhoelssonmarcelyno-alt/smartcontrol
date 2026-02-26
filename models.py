@@ -24,3 +24,31 @@ def listar_produtos():
     produtos = conn.execute('SELECT * FROM produtos').fetchall()
     conn.close()
     return produtos
+
+# --- FUNÇÕES DE CLIENTES (FIADOS) ---
+
+def cadastrar_cliente(nome, telefone):
+    conn = get_db_connection()
+    conn.execute('''
+        INSERT INTO clientes (nome, telefone)
+        VALUES (?, ?)
+    ''', (nome, telefone))
+    conn.commit()
+    conn.close()
+    print(f"👤 Cliente '{nome}' cadastrado com sucesso!")
+
+def listar_clientes():
+    conn = get_db_connection()
+    clientes = conn.execute('SELECT * FROM clientes').fetchall()
+    conn.close()
+    return clientes
+
+def atualizar_debito_cliente(cliente_id, valor):
+    conn = get_db_connection()
+    conn.execute('''
+        UPDATE clientes 
+        SET saldo_devedor = saldo_devedor + ? 
+        WHERE id = ?
+    ''', (valor, cliente_id))
+    conn.commit()
+    conn.close()
