@@ -52,3 +52,27 @@ def atualizar_debito_cliente(cliente_id, valor):
     ''', (valor, cliente_id))
     conn.commit()
     conn.close()
+
+def registrar_venda(produto_id, cliente_id, quantidade, valor_total, pago):
+    conn = get_db_connection()
+    
+    # 1. Registra a venda
+    conn.execute('''
+        INSERT INTO vendas (produto_id, cliente_id, quantidade, valor_total, pago)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (produto_id, cliente_id, quantidade, valor_total, pago))
+    
+    # 2. Baixa no estoque
+    conn.execute('''
+        UPDATE produtos SET quantidade = quantidade - ? WHERE id = ?
+    ''', (quantidade, produto_id))
+    
+    # 3. Se for FIADO (pago = 0), atualiza a dívida do cliente
+    if not pago and cliente_id:
+        conn.execute('''
+            UPDATE clientes SET saldo_devedor = saldo_devedor + ? WHERE id = ?
+        ''', (valor_total, cliente_id))
+    
+    conn.commit()
+    conn.close()
+    print(f"💰 Venda de R$ {valor_total} registrada!")

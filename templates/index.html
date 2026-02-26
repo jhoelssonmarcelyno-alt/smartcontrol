@@ -1,0 +1,69 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="animate-fadeIn">
+    <div class="mb-8">
+        <h2 class="text-3xl font-bold">Resumo Geral</h2>
+        <p class="text-gray-400">Bem-vindo ao painel de controle do seu negócio.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div class="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 hover:border-blue-500 transition duration-300">
+            <p class="text-gray-400 text-xs uppercase font-bold">Total em Estoque</p>
+            <h2 class="text-4xl font-black text-blue-500 mt-2">{{ total_estoque }}</h2>
+            <p class="text-gray-500 text-sm mt-1">unidades cadastradas</p>
+        </div>
+
+        <div class="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 hover:border-red-500 transition duration-300">
+            <p class="text-gray-400 text-xs uppercase font-bold">Total de Fiados</p>
+            <h2 class="text-4xl font-black text-red-500 mt-2">R$ {{ "%.2f"|format(total_fiado) }}</h2>
+            <p class="text-gray-500 text-sm mt-1">pendente de recebimento</p>
+        </div>
+
+        <div class="bg-[#1e293b] p-6 rounded-2xl border border-green-500/20 bg-gradient-to-br from-[#1e293b] to-[#14532d]/20">
+            <p class="text-gray-400 text-xs uppercase font-bold">Status do Caixa</p>
+            <h2 class="text-xl font-bold text-green-500 mt-2">Sincronizado</h2>
+            <div class="mt-2 flex items-center text-green-400 text-xs font-bold uppercase">
+                <span class="relative flex h-2 w-2 mr-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                Sistema Online
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-[#1e293b] rounded-2xl border border-gray-700 shadow-2xl overflow-hidden">
+        <div class="p-6 border-b border-gray-700 flex justify-between items-center">
+            <h3 class="font-bold text-xl">Produtos em Destaque</h3>
+            <button class="bg-green-600 hover:bg-green-700 text-white text-sm font-bold py-2 px-4 rounded-lg transition">
+                Ver Tudo
+            </button>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead class="bg-[#0f172a]/50 text-gray-400 text-xs uppercase tracking-widest font-bold">
+                    <tr>
+                        <th class="p-5">Nome do Produto</th>
+                        <th class="p-5">Preço de Venda</th>
+                        <th class="p-5">Status Estoque</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800">
+                    {% for produto in produtos %}
+                    <tr class="hover:bg-gray-800/40 transition">
+                        <td class="p-5 font-semibold">{{ produto.nome }}</td>
+                        <td class="p-5 text-green-400 font-bold font-mono">R$ {{ "%.2f"|format(produto.preco_venda) }}</td>
+                        <td class="p-5">
+                            <span class="bg-gray-900 text-blue-400 border border-blue-500/30 px-3 py-1 rounded-full text-xs font-bold">
+                                {{ produto.quantidade }} em estoque
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

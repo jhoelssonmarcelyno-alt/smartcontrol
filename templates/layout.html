@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartControl - Gestão Inteligente</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-[#0f172a] text-white font-sans min-h-screen">
+
+    <nav class="bg-[#1e293b] p-4 border-b border-green-500/30 shadow-xl">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-green-500 tracking-tighter">
+                <i class="fas fa-rocket mr-2"></i>SmartControl
+            </h1>
+            <div class="hidden md:flex space-x-8 text-sm font-medium">
+                <a href="/" class="hover:text-green-500 transition">Dashboard</a>
+                <a href="#" class="hover:text-green-500 transition text-gray-400">Produtos</a>
+                <a href="#" class="hover:text-green-500 transition text-gray-400">Clientes</a>
+                <a href="#" class="hover:text-green-500 transition text-gray-400">Vendas</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-6">
+        {% block content %}{% endblock %}
+    </main>
+
+</body>
+</html>
