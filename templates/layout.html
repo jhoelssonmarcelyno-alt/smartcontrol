@@ -11,14 +11,26 @@
 
     <nav class="bg-[#1e293b] p-4 border-b border-green-500/30 shadow-xl">
         <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-2xl font-bold text-green-500 tracking-tighter">
+            <h1 class="text-2xl font-bold text-green-500 tracking-tighter cursor-pointer" onclick="window.location.href='/'">
                 <i class="fas fa-rocket mr-2"></i>SmartControl
             </h1>
-            <div class="hidden md:flex space-x-8 text-sm font-medium">
-                <a href="/" class="hover:text-green-500 transition">Dashboard</a>
-                <a href="#" class="hover:text-green-500 transition text-gray-400">Produtos</a>
-                <a href="#" class="hover:text-green-500 transition text-gray-400">Clientes</a>
-                <a href="#" class="hover:text-green-500 transition text-gray-400">Vendas</a>
+            
+            <div class="hidden md:flex space-x-6 text-sm font-medium items-center">
+                <a href="/" class="hover:text-green-500 transition">
+                    <i class="fas fa-home mr-1"></i> Dashboard
+                </a>
+                
+                <a href="/produtos" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg text-white transition flex items-center shadow-lg shadow-green-900/20">
+                    <i class="fas fa-plus-circle mr-2"></i> Novo Produto
+                </a>
+
+                <a href="/clientes" class="hover:text-blue-400 transition text-gray-400 flex items-center">
+                    <i class="fas fa-users mr-1"></i> Clientes
+                </a>
+
+                <a href="/vendas" class="hover:text-yellow-400 transition text-gray-400 flex items-center">
+                    <i class="fas fa-shopping-cart mr-1"></i> Vendas
+                </a>
             </div>
         </div>
     </nav>
