@@ -76,3 +76,30 @@ def registrar_venda(produto_id, cliente_id, quantidade, valor_total, pago):
     conn.commit()
     conn.close()
     print(f"💰 Venda de R$ {valor_total} registrada!")
+
+    def registrar_venda(produto_id, cliente_id, quantidade, forma_pagamento):
+     conn = conectar_db()
+    cursor = conn.cursor()
+    
+    # 1. Busca o preço e o estoque atual do produto
+    cursor.execute("SELECT preco_venda, quantidade FROM produtos WHERE id = ?", (produto_id,))
+    produto = cursor.fetchone()
+    
+    if produto and produto['quantidade'] >= quantidade:
+        valor_total = produto['preco_venda'] * quantidade
+        
+        # 2. Diminui o estoque
+        cursor.execute("UPDATE produtos SET quantidade = quantidade - ? WHERE id = ?", (quantidade, produto_id))
+        
+        # 3. Se for FIADO, aumenta a dívida do cliente
+        if forma_pagamento == 'fiado':
+            cursor.execute("UPDATE clientes SET saldo_devedor = saldo_devedor + ? WHERE id = ?", (valor_total, cliente_id))
+            
+        # 4. Registra a venda na tabela de vendas
+        cursor.execute("""
+            INSERT INTO vendas (produto_id, cliente_id, quantidade, valor_total, forma_pagamento)
+            VALUES (?, ?, ?, ?, ?)
+        """, (produto_id, cliente_id, quantidade, valor_total, forma_pagamento))
+        
+        conn.commit()
+    conn.close()

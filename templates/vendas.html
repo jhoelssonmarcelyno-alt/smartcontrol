@@ -1,0 +1,50 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="mb-8">
+        <h2 class="text-3xl font-bold text-white"><i class="fas fa-cart-arrow-down text-yellow-500 mr-2"></i> Registrar Venda</h2>
+    </div>
+
+    <form method="POST" class="bg-[#1e293b] p-8 rounded-2xl border border-gray-700 shadow-2xl space-y-6">
+        <div>
+            <label class="block text-sm font-medium text-gray-400 mb-2">Selecione o Produto</label>
+            <select name="produto_id" class="w-full bg-[#0f172a] border border-gray-600 rounded-lg p-3 text-white outline-none focus:border-yellow-500">
+                {% for produto in produtos %}
+                <option value="{{ produto.id }}">{{ produto.nome }} - R$ {{ "%.2f"|format(produto.preco_venda) }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-400 mb-2">Cliente (Obrigatório para Fiado)</label>
+            <select name="cliente_id" class="w-full bg-[#0f172a] border border-gray-600 rounded-lg p-3 text-white outline-none focus:border-yellow-500">
+                {% for cliente in clientes %}
+                <option value="{{ cliente.id }}">{{ cliente.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-400 mb-2">Quantidade</label>
+                <input type="number" name="quantidade" value="1" min="1" class="w-full bg-[#0f172a] border border-gray-600 rounded-lg p-3 text-white outline-none">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-400 mb-2">Forma de Pagamento</label>
+                <select name="forma_pagamento" class="w-full bg-[#0f172a] border border-gray-600 rounded-lg p-3 text-white outline-none focus:border-green-500">
+                    <option value="dinheiro">💵 Dinheiro</option>
+                    <option value="pix">⚡ PIX</option>
+                    <option value="cartao">💳 Cartão</option>
+                    <option value="fiado">📝 Fiado</option>
+                </select>
+            </div>
+        </div>
+
+        <button type="submit" class="w-full bg-yellow-500 hover:bg-yellow-600 text-[#0f172a] font-black py-4 rounded-xl transition shadow-lg text-lg uppercase">
+            Finalizar Venda
+        </button>
+    </form>
+</div>
+{% endblock %}
