@@ -1,46 +1,63 @@
 {% extends 'layout.html' %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto">
-    <div class="mb-8">
-        <h2 class="text-3xl font-bold text-white">📦 Cadastrar Produto</h2>
-        <p class="text-gray-400">Adicione novos itens ao seu estoque.</p>
+<div class="animate-fadeIn">
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h2 class="text-3xl font-bold text-white uppercase italic">Gerenciar Estoque</h2>
+            <p class="text-gray-400">Adicione novos itens ou visualize seu inventário completo.</p>
+        </div>
+        <a href="#form-cadastro" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-xl transition shadow-lg">
+            <i class="fas fa-plus mr-2"></i> Novo Produto
+        </a>
     </div>
 
-    <form method="POST" class="bg-[#1e293b] p-8 rounded-2xl border border-gray-700 shadow-2xl space-y-6">
-        <div>
-            <label class="block text-sm font-medium text-gray-400 mb-2">Nome do Produto</label>
-            <input type="text" name="nome" required placeholder="Ex: Coca-Cola 2L" 
-                   class="w-full bg-[#0f172a] border border-gray-600 rounded-lg p-3 text-white focus:border-green-500 outline-none transition">
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-400 mb-2">Preço de Custo (R$)</label>
-                <input type="number" step="0.01" name="preco_custo" required placeholder="0.00"
-                       class="w-full bg-[#0f172a] border border-gray-600 rounded-lg p-3 text-white focus:border-green-500 outline-none">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-400 mb-2">Preço de Venda (R$)</label>
-                <input type="number" step="0.01" name="preco_venda" required placeholder="0.00"
-                       class="w-full bg-[#0f172a] border border-gray-600 rounded-lg p-3 text-white focus:border-green-500 outline-none">
-            </div>
-        </div>
-
-        <div>
-            <label class="block text-sm font-medium text-gray-400 mb-2">Quantidade Inicial</label>
-            <input type="number" name="quantidade" required placeholder="0"
-                   class="w-full bg-[#0f172a] border border-gray-600 rounded-lg p-3 text-white focus:border-green-500 outline-none">
-        </div>
-
-        <div class="flex space-x-4 pt-4">
-            <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition shadow-lg shadow-green-900/20">
-                <i class="fas fa-save mr-2"></i> Salvar Produto
+    <div id="form-cadastro" class="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 mb-10 shadow-2xl">
+        <h3 class="text-xl font-bold text-white mb-6 flex items-center">
+            <i class="fas fa-edit mr-3 text-blue-500"></i> Cadastrar Produto
+        </h3>
+        <form method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <input type="text" name="nome" placeholder="Nome do Produto" class="bg-[#0f172a] border border-gray-600 rounded-lg p-3 text-white outline-none focus:border-blue-500" required>
+            <input type="number" step="0.01" name="preco_custo" placeholder="Preço de Custo (R$)" class="bg-[#0f172a] border border-gray-600 rounded-lg p-3 text-white outline-none focus:border-blue-500" required>
+            <input type="number" step="0.01" name="preco_venda" placeholder="Preço de Venda (R$)" class="bg-[#0f172a] border border-gray-600 rounded-lg p-3 text-white outline-none focus:border-blue-500" required>
+            <input type="number" name="quantidade" placeholder="Qtd Inicial" class="bg-[#0f172a] border border-gray-600 rounded-lg p-3 text-white outline-none focus:border-blue-500" required>
+            <button type="submit" class="md:col-span-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg transition uppercase tracking-widest">
+                Salvar Produto no Sistema
             </button>
-            <a href="/" class="flex-1 bg-gray-700 hover:bg-gray-600 text-center py-3 rounded-lg font-bold transition">
-                Cancelar
-            </a>
+        </form>
+    </div>
+
+    <div class="bg-[#1e293b] rounded-2xl border border-gray-700 shadow-2xl overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead class="bg-[#0f172a]/50 text-gray-400 text-xs uppercase tracking-widest font-bold">
+                    <tr>
+                        <th class="p-5">Produto</th>
+                        <th class="p-5">Custo</th>
+                        <th class="p-5">Venda</th>
+                        <th class="p-5">Estoque</th>
+                        <th class="p-5">Lucro Unit.</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800">
+                    {% for produto in produtos %}
+                    <tr class="hover:bg-gray-800/40 transition">
+                        <td class="p-5 font-semibold text-white">{{ produto.nome }}</td>
+                        <td class="p-5 text-gray-400">R$ {{ "%.2f"|format(produto.preco_custo) }}</td>
+                        <td class="p-5 text-green-400 font-bold">R$ {{ "%.2f"|format(produto.preco_venda) }}</td>
+                        <td class="p-5">
+                            <span class="{% if produto.quantidade < 5 %}text-red-500{% else %}text-blue-400{% endif %} font-bold">
+                                {{ produto.quantidade }} un
+                            </span>
+                        </td>
+                        <td class="p-5 text-emerald-500 font-bold">
+                            R$ {{ "%.2f"|format(produto.preco_venda - produto.preco_custo) }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-    </form>
+    </div>
 </div>
 {% endblock %}

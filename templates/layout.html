@@ -6,44 +6,58 @@
     <title>SmartControl - Gestão Inteligente</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .nav-link { @apply flex items-center px-4 py-2 rounded-lg transition-all duration-300; }
+        .active-link { @apply bg-green-600 text-white shadow-lg shadow-green-900/20; }
+    </style>
 </head>
 <body class="bg-[#0f172a] text-white font-sans min-h-screen">
 
-    <nav class="bg-[#1e293b] p-4 border-b border-green-500/30 shadow-xl">
-        <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-2xl font-bold text-green-500 tracking-tighter cursor-pointer" onclick="window.location.href='/'">
-                <i class="fas fa-rocket mr-2"></i>SmartControl
-            </h1>
+    <nav class="bg-[#1e293b] border-b border-white/5 shadow-2xl">
+        <div class="container mx-auto px-6 py-3 flex justify-between items-center">
             
-            <div class="hidden md:flex space-x-6 text-sm font-medium items-center">
-                <a href="/" class="hover:text-green-500 transition">
-                    <i class="fas fa-home mr-1"></i> Dashboard
+            <div class="flex items-center space-x-2 cursor-pointer" onclick="window.location.href='/'">
+                <div class="bg-green-500 p-2 rounded-lg shadow-lg shadow-green-500/20">
+                    <i class="fas fa-rocket text-[#1e293b]"></i>
+                </div>
+                <h1 class="text-xl font-black tracking-tighter uppercase italic text-white">
+                    Smart<span class="text-green-500">Control</span>
+                </h1>
+            </div>
+            
+            <div class="hidden md:flex items-center space-x-2">
+                <a href="/" class="flex items-center px-4 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition">
+                    <i class="fas fa-chart-line mr-2 text-blue-400"></i> Dashboard
                 </a>
                 
-                <a href="/produtos" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg text-white transition flex items-center shadow-lg shadow-green-900/20">
-                    <i class="fas fa-plus-circle mr-2"></i> Novo Produto
+                <a href="/produtos" class="flex items-center px-4 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition">
+                    <i class="fas fa-boxes mr-2 text-purple-400"></i> Estoque
                 </a>
 
-                <a href="/clientes" class="hover:text-blue-400 transition text-gray-400 flex items-center">
-                    <i class="fas fa-users mr-1"></i> Clientes
+                <a href="/clientes" class="flex items-center px-4 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition">
+                    <i class="fas fa-user-friends mr-2 text-emerald-400"></i> Clientes
                 </a>
 
-                <a href="/vendas" class="hover:text-yellow-400 transition text-gray-400 flex items-center">
-                    <i class="fas fa-shopping-cart mr-1"></i> Vendas
+                <a href="/vendas" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold transition flex items-center shadow-lg shadow-green-900/40">
+                    <i class="fas fa-shopping-cart mr-2"></i> Nova Venda
                 </a>
             </div>
-            <div class="mt-auto pt-10">
-    <a href="/logout" class="flex items-center p-3 text-red-400 hover:bg-red-500/10 rounded-xl transition group">
-        <i class="fas fa-sign-out-alt mr-3 group-hover:scale-110 transition"></i>
-        <span class="font-bold">Sair da Conta</span>
-    </a>
-</div>
+
+            <div class="flex items-center border-l border-white/10 ml-4 pl-4">
+                <a href="/logout" class="text-gray-400 hover:text-red-500 transition-colors flex items-center font-medium text-sm">
+                    <i class="fas fa-power-off mr-2"></i> Sair
+                </a>
+            </div>
         </div>
     </nav>
 
     <main class="container mx-auto p-6">
         {% block content %}{% endblock %}
     </main>
+
+    <footer class="text-center py-10 text-gray-600 text-xs uppercase tracking-widest">
+        &copy; 2024 SmartControl System - Todos os direitos reservados
+    </footer>
 
 </body>
 </html>

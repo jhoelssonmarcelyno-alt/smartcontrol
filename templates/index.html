@@ -14,7 +14,7 @@
                 <p class="text-white text-sm">Olá, Jhoelsson! Você tem acesso à gestão de todos os assinantes.</p>
             </div>
         </div>
-        <a href="/admin/assinantes" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-xl transition shadow-lg flex items-center">
+        <a href="{{ url_for('admin_assinantes') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-xl transition shadow-lg flex items-center">
             <i class="fas fa-users-cog mr-2"></i> Gerenciar Assinantes
         </a>
     </div>
@@ -37,82 +37,48 @@
                 <p class="text-xs text-gray-400 font-bold uppercase">Tempo Restante</p>
                 <p class="text-xl font-black text-white">{{ assinante.dias_restantes }} dias</p>
             </div>
-            <a href="/planos" class="bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-2 px-6 rounded-xl transition transform hover:scale-105 shadow-lg">
+            <a href="{{ url_for('planos') }}" class="bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-2 px-6 rounded-xl transition transform hover:scale-105 shadow-lg">
                 Renovar
             </a>
         </div>
     </div>
 
-    <div class="mb-8">
-        <h2 class="text-3xl font-bold italic tracking-tighter text-white uppercase">Resumo Geral</h2>
-        <p class="text-gray-400">Bem-vindo ao centro de comando, <span class="text-white font-medium">{{ assinante.nome }}</span>.</p>
+    <div class="mb-8 flex justify-between items-end">
+        <div>
+            <h2 class="text-3xl font-bold italic tracking-tighter text-white uppercase">Resumo Financeiro</h2>
+            <p class="text-gray-400">Bem-vindo, <span class="text-white font-medium">{{ assinante.nome }}</span>. Aqui está sua performance hoje.</p>
+        </div>
+        <a href="{{ url_for('vendas') }}" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-6 rounded-xl transition shadow-lg flex items-center mb-1">
+            <i class="fas fa-cart-plus mr-2"></i> Nova Venda
+        </a>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-10">
+        
         <div class="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 hover:border-blue-500 transition duration-300 shadow-xl">
-            <p class="text-gray-400 text-xs uppercase font-bold">Total em Estoque</p>
-            <h2 class="text-4xl font-black text-blue-500 mt-2">{{ total_estoque }}</h2>
-            <p class="text-gray-500 text-sm mt-1">unidades cadastradas</p>
+            <p class="text-gray-400 text-xs uppercase font-bold">Faturamento Total</p>
+            <h2 class="text-3xl font-black text-blue-500 mt-2">R$ {{ "%.2f"|format(resumo.faturamento or 0) }}</h2>
+            <p class="text-gray-500 text-xs mt-1">Total bruto em caixa</p>
         </div>
+
+        <div class="bg-[#1e293b] p-6 rounded-2xl border border-emerald-500/50 hover:border-emerald-400 transition duration-300 shadow-xl relative overflow-hidden">
+            <p class="text-gray-400 text-xs uppercase font-bold">Lucro Real Estimado</p>
+            <h2 class="text-3xl font-black text-emerald-500 mt-2">R$ {{ "%.2f"|format(resumo.lucro_total or 0) }}</h2>
+            <p class="text-gray-500 text-xs mt-1">Descontando o custo</p>
+        </div>
+
+        <a href="{{ url_for('produtos') }}" class="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 hover:border-orange-500 transition duration-300 shadow-xl block group">
+            <p class="text-gray-400 text-xs uppercase font-bold group-hover:text-orange-400">Total em Estoque</p>
+            <h2 class="text-4xl font-black text-orange-500 mt-2">{{ total_estoque }}</h2>
+            <p class="text-gray-500 text-xs mt-1">Itens disponíveis <i class="fas fa-external-link-alt ml-1"></i></p>
+        </a>
 
         <div class="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 hover:border-red-500 transition duration-300 shadow-xl">
             <p class="text-gray-400 text-xs uppercase font-bold">Total de Fiados</p>
-            <h2 class="text-4xl font-black text-red-500 mt-2">R$ {{ "%.2f"|format(total_fiado) }}</h2>
-            <p class="text-gray-500 text-sm mt-1">pendente de recebimento</p>
-        </div>
-
-        <div class="bg-[#1e293b] p-6 rounded-2xl border border-green-500/20 bg-gradient-to-br from-[#1e293b] to-[#14532d]/20 shadow-xl">
-            <p class="text-gray-400 text-xs uppercase font-bold">Status do Sistema</p>
-            <h2 class="text-xl font-bold text-green-500 mt-2">Sincronizado</h2>
-            <div class="mt-2 flex items-center text-green-400 text-xs font-bold uppercase">
-                <span class="relative flex h-2 w-2 mr-2">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                </span>
-                Assinatura Ativa
-            </div>
+            <h2 class="text-4xl font-black text-red-500 mt-2">R$ {{ "%.2f"|format(total_fiado or 0) }}</h2>
+            <p class="text-gray-500 text-xs mt-1">Pendente de recebimento</p>
         </div>
     </div>
 
-    <div class="bg-[#1e293b] rounded-2xl border border-gray-700 shadow-2xl overflow-hidden">
-        <div class="p-6 border-b border-gray-700 flex justify-between items-center bg-[#0f172a]/30">
-            <h3 class="font-bold text-xl flex items-center">
-                <i class="fas fa-boxes mr-3 text-blue-500"></i> Produtos em Destaque
-            </h3>
-            <a href="/produtos" class="bg-green-600 hover:bg-green-700 text-white text-sm font-bold py-2 px-5 rounded-lg transition flex items-center shadow-lg shadow-green-900/20">
-                <i class="fas fa-plus mr-2"></i> Novo Produto
-            </a>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-left">
-                <thead class="bg-[#0f172a]/50 text-gray-400 text-xs uppercase tracking-widest font-bold">
-                    <tr>
-                        <th class="p-5">Nome do Produto</th>
-                        <th class="p-5">Preço de Venda</th>
-                        <th class="p-5">Status Estoque</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-800">
-                    {% for produto in produtos %}
-                    <tr class="hover:bg-gray-800/40 transition">
-                        <td class="p-5 font-semibold text-white">{{ produto.nome }}</td>
-                        <td class="p-5 text-green-400 font-bold font-mono text-lg">R$ {{ "%.2f"|format(produto.preco_venda) }}</td>
-                        <td class="p-5">
-                            <span class="bg-[#0f172a] text-blue-400 border border-blue-500/20 px-4 py-1.5 rounded-full text-xs font-bold shadow-inner">
-                                <i class="fas fa-layer-group mr-1.5 opacity-50"></i> {{ produto.quantidade }} unidades
-                            </span>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="3" class="p-10 text-center text-gray-500 italic">
-                            Nenhum produto cadastrado ainda. Comece adicionando um novo!
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
 </div>
 {% endblock %}
