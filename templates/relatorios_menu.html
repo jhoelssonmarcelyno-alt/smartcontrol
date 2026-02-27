@@ -1,0 +1,51 @@
+{% extends 'layout.html' %}
+{% block content %}
+<div class="max-w-4xl mx-auto animate-fadeIn mt-10">
+    <div class="text-center mb-12">
+        <h2 class="text-4xl font-black uppercase italic text-white tracking-tighter">Centro de <span class="text-orange-500 underline decoration-white/10">Análise</span></h2>
+        <p class="text-gray-400 mt-2">Selecione um período para visualizar o desempenho detalhado.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <a href="{{ url_for('relatorios', periodo='dia') }}" class="group bg-[#1e293b] border border-gray-700 p-8 rounded-3xl flex items-center space-x-6 hover:border-blue-500 hover:bg-blue-600/5 transition-all shadow-2xl">
+            <div class="bg-blue-500/20 p-5 rounded-2xl group-hover:scale-110 transition duration-300 shadow-lg shadow-blue-500/10">
+                <i class="fas fa-calendar-day text-blue-500 text-4xl"></i>
+            </div>
+            <div>
+                <h3 class="text-2xl font-black text-white uppercase italic tracking-tighter">Diário</h3>
+                <p class="text-sm text-gray-400 font-medium">Acompanhe suas vendas de hoje.</p>
+            </div>
+        </a>
+
+        <a href="{{ url_for('relatorios', periodo='semana') }}" class="group bg-[#1e293b] border border-gray-700 p-8 rounded-3xl flex items-center space-x-6 hover:border-purple-500 hover:bg-purple-600/5 transition-all shadow-2xl">
+            <div class="bg-purple-500/20 p-5 rounded-2xl group-hover:scale-110 transition duration-300 shadow-lg shadow-purple-500/10">
+                <i class="fas fa-calendar-week text-purple-500 text-4xl"></i>
+            </div>
+            <div>
+                <h3 class="text-2xl font-black text-white uppercase italic tracking-tighter">Semanal</h3>
+                <p class="text-sm text-gray-400 font-medium">Últimos 7 dias de atividade.</p>
+            </div>
+        </a>
+
+        <a href="{{ url_for('relatorios', periodo='mes') }}" class="group bg-[#1e293b] border border-gray-700 p-8 rounded-3xl flex items-center space-x-6 hover:border-emerald-500 hover:bg-emerald-600/5 transition-all shadow-2xl">
+            <div class="bg-emerald-500/20 p-5 rounded-2xl group-hover:scale-110 transition duration-300 shadow-lg shadow-emerald-500/10">
+                <i class="fas fa-calendar-alt text-emerald-500 text-4xl"></i>
+            </div>
+            <div>
+                <h3 class="text-2xl font-black text-white uppercase italic tracking-tighter">Mensal</h3>
+                <p class="text-sm text-gray-400 font-medium">Resumo dos últimos 30 dias.</p>
+            </div>
+        </a>
+
+        <a href="{{ url_for('relatorios', periodo='ano') }}" class="group bg-[#1e293b] border border-gray-700 p-8 rounded-3xl flex items-center space-x-6 hover:border-orange-500 hover:bg-orange-600/5 transition-all shadow-2xl">
+            <div class="bg-orange-500/20 p-5 rounded-2xl group-hover:scale-110 transition duration-300 shadow-lg shadow-orange-500/10">
+                <i class="fas fa-history text-orange-500 text-4xl"></i>
+            </div>
+            <div>
+                <h3 class="text-2xl font-black text-white uppercase italic tracking-tighter">Anual</h3>
+                <p class="text-sm text-gray-400 font-medium">Análise completa do ano vigente.</p>
+            </div>
+        </a>
+    </div>
+</div>
+{% endblock %}

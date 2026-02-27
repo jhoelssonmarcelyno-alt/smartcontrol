@@ -1,0 +1,64 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="animate-fadeIn">
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h2 class="text-3xl font-black uppercase italic text-white tracking-tighter">
+                Relatório <span class="text-blue-500">{{ periodo }}</span>
+            </h2>
+            <p class="text-gray-500 text-sm font-medium">Visualizando desempenho filtrado</p>
+        </div>
+        <a href="/relatorios_painel" class="bg-[#1e293b] text-gray-400 hover:text-white px-5 py-2 rounded-xl border border-gray-700 transition flex items-center group">
+            <i class="fas fa-arrow-left mr-2 group-hover:-translate-x-1 transition"></i> Voltar ao Menu
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div class="bg-[#1e293b] p-6 rounded-2xl border border-blue-500/30 shadow-xl">
+            <p class="text-gray-400 text-xs font-bold uppercase tracking-widest">Faturamento no Período</p>
+            <h2 class="text-4xl font-black text-white mt-1">R$ {{ "%.2f"|format(total) }}</h2>
+        </div>
+        <div class="bg-[#1e293b] p-6 rounded-2xl border border-emerald-500/30 shadow-xl">
+            <p class="text-gray-400 text-xs font-bold uppercase tracking-widest">Lucro Estimado</p>
+            <h2 class="text-4xl font-black text-emerald-500 mt-1">R$ {{ "%.2f"|format(lucro) }}</h2>
+        </div>
+    </div>
+
+    <div class="bg-[#1e293b] rounded-3xl overflow-hidden border border-gray-700 shadow-2xl">
+        <div class="p-6 border-b border-gray-700 bg-gray-800/30">
+            <h3 class="font-bold text-gray-300 uppercase text-sm tracking-widest"><i class="fas fa-list mr-2"></i> Detalhamento de Vendas</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-800/50 text-gray-400 text-[10px] uppercase tracking-widest">
+                        <th class="p-5">Data/Hora</th>
+                        <th class="p-5">Produto</th>
+                        <th class="p-5 text-center">Qtd</th>
+                        <th class="p-5">Valor Un.</th>
+                        <th class="p-5">Total Venda</th>
+                    </tr>
+                </thead>
+                <tbody class="text-gray-300">
+                    {% for venda in vendas %}
+                    <tr class="border-t border-gray-700/50 hover:bg-white/5 transition">
+                        <td class="p-5 text-sm text-gray-400">{{ venda.data_formatada }}</td>
+                        <td class="p-5 font-bold text-white uppercase italic text-sm">{{ venda.produto_nome }}</td>
+                        <td class="p-5 text-center font-mono bg-white/5">{{ venda.quantidade }}</td>
+                        <td class="p-5 text-sm">R$ {{ "%.2f"|format(venda.preco_venda) }}</td>
+                        <td class="p-5 text-emerald-400 font-black">R$ {{ "%.2f"|format(venda.quantidade * venda.preco_venda) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="p-10 text-center text-gray-500 italic">
+                            Nenhuma venda registrada neste período.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
