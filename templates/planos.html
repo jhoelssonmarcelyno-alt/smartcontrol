@@ -1,0 +1,73 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="text-center mb-12 animate-fadeIn">
+    <h2 class="text-4xl font-extrabold text-white mb-4">Escolha seu Plano de Assinante</h2>
+    <p class="text-gray-400 text-lg">Seu período de teste acabou ou você deseja garantir mais tempo de uso.</p>
+</div>
+
+<div class="grid md:grid-cols-4 gap-6">
+    
+    <div class="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 hover:border-green-500 transition shadow-xl flex flex-col justify-between">
+        <div>
+            <h3 class="text-xl font-bold mb-2 text-green-500">Mensal</h3>
+            <p class="text-3xl font-black mb-4">R$ 19,90</p>
+            <ul class="text-gray-400 mb-8 space-y-2 text-sm text-left">
+                <li><i class="fas fa-check text-green-500 mr-2"></i> 30 dias de acesso</li>
+                <li><i class="fas fa-check text-green-500 mr-2"></i> Suporte via Chat</li>
+            </ul>
+        </div>
+        <a href="https://wa.me/5573982547701?text=Olá! Quero assinar o Plano MENSAL (30 dias) do SmartControl." 
+           target="_blank" class="w-full bg-green-600 hover:bg-green-700 text-white text-center py-3 rounded-lg font-bold transition">
+           Assinar 30 Dias
+        </a>
+    </div>
+
+    <div class="bg-[#1e293b] p-6 rounded-2xl border-2 border-blue-500 transition shadow-xl relative scale-105 flex flex-col justify-between">
+        <span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-500 text-xs px-3 py-1 rounded-full uppercase font-bold text-white tracking-widest">Mais Popular</span>
+        <div>
+            <h3 class="text-xl font-bold mb-2 text-blue-500">Trimestral</h3>
+            <p class="text-3xl font-black mb-4">R$ 49,90</p>
+            <ul class="text-gray-400 mb-8 space-y-2 text-sm text-left">
+                <li><i class="fas fa-check text-blue-500 mr-2"></i> 90 dias de acesso</li>
+                <li><i class="fas fa-check text-blue-500 mr-2"></i> Economia Real</li>
+            </ul>
+        </div>
+        <a href="https://wa.me/5573982547701?text=Olá! Quero assinar o Plano TRIMESTRAL (90 dias) do SmartControl." 
+           target="_blank" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-center py-3 rounded-lg font-bold transition">
+           Assinar 90 Dias
+        </a>
+    </div>
+
+    <div class="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 hover:border-purple-500 transition shadow-xl flex flex-col justify-between">
+        <div>
+            <h3 class="text-xl font-bold mb-2 text-purple-500">Semestral</h3>
+            <p class="text-3xl font-black mb-4">R$ 89,90</p>
+            <ul class="text-gray-400 mb-8 space-y-2 text-sm text-left">
+                <li><i class="fas fa-check text-purple-500 mr-2"></i> 180 dias de acesso</li>
+                <li><i class="fas fa-check text-purple-500 mr-2"></i> Ideal para empresas</li>
+            </ul>
+        </div>
+        <a href="https://wa.me/5573982547701?text=Olá! Quero assinar o Plano SEMESTRAL (180 dias) do SmartControl." 
+           target="_blank" class="w-full bg-purple-600 hover:bg-purple-700 text-white text-center py-3 rounded-lg font-bold transition">
+           Assinar 180 Dias
+        </a>
+    </div>
+
+    <div class="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 hover:border-yellow-500 transition shadow-xl flex flex-col justify-between">
+        <div>
+            <h3 class="text-xl font-bold mb-2 text-yellow-500">Anual</h3>
+            <p class="text-3xl font-black mb-4 text-yellow-500">R$ 149,90</p>
+            <ul class="text-gray-400 mb-8 space-y-2 text-sm text-left">
+                <li><i class="fas fa-check text-yellow-500 mr-2"></i> 365 dias de acesso</li>
+                <li><i class="fas fa-check text-yellow-500 mr-2"></i> Melhor Preço</li>
+            </ul>
+        </div>
+        <a href="https://wa.me/5573982547701?text=Olá! Quero assinar o Plano ANUAL (1 ano) do SmartControl." 
+           target="_blank" class="w-full bg-yellow-500 hover:bg-yellow-600 text-black text-center py-3 rounded-lg font-bold transition shadow-lg shadow-yellow-500/20">
+           Assinar 1 Ano
+        </a>
+    </div>
+
+</div>
+{% endblock %}

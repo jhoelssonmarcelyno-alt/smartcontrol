@@ -103,3 +103,39 @@ def registrar_venda(produto_id, cliente_id, quantidade, valor_total, pago):
         
         conn.commit()
     conn.close()
+
+    def criar_tabela_assinantes():
+     conn = conectar_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS assinantes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            senha TEXT NOT NULL,
+            data_cadastro DATETIME DEFAULT CURRENT_TIMESTAMP,
+            data_expiracao DATETIME,
+            plano TEXT -- '7_dias', '30_dias', '90_dias', '180_dias', '365_dias'
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+    def criar_tabela_usuarios():
+     conn = conectar_db()
+    cursor = conn.cursor()
+    # Criamos a tabela de usuários (assinantes)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            senha TEXT NOT NULL,
+            plano TEXT DEFAULT 'teste',
+            data_expiracao DATETIME
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+# Execute essa função uma vez no seu terminal ou no final do arquivo para criar a tabela
