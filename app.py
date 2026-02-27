@@ -1,119 +1,162 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from models import (listar_produtos, listar_clientes, cadastrar_produto, 
-                    cadastrar_cliente, registrar_venda)
+                    cadastrar_cliente, registrar_venda, conectar_db, 
+                    cadastrar_usuario, listar_todos_assinantes, 
+                    renovar_assinatura, excluir_usuario) # <-- Adicionado aqui
 from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = 'smartcontrol_chave_secreta_99' # Chave para manter o usuário logado
+app.secret_key = 'smartcontrol_chave_secreta_99'
 
-# Simulação de banco de dados de assinantes (Para teste)
-USUARIOS_TESTE = {
-    "admin@teste.com": {"senha": "123", "nome": "Joelson Admin", "dias": 7, "plano": "Teste Grátis"}
-}
+# Configuração do seu email de administrador Master
+ADMIN_EMAIL = "jhoelssonmarcelyno@gmail.com"
 
-# ROTA DE LOGIN
+# FUNÇÃO AUXILIAR: Verifica dias restantes de assinatura
+def verificar_assinatura(data_exp_str):
+    try:
+        data_exp = datetime.strptime(data_exp_str, '%Y-%m-%d %H:%M:%S')
+        delta = data_exp - datetime.now()
+        return delta.days
+    except:
+        return -1
+
+# --- ROTAS DE ACESSO E AUTENTICAÇÃO ---
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         email = request.form['email']
         senha = request.form['senha']
         
-        # Verifica se o assinante existe e a senha bate
-        if email in USUARIOS_TESTE and USUARIOS_TESTE[email]['senha'] == senha:
-            session['usuario'] = email
-            session['nome'] = USUARIOS_TESTE[email]['nome']
+        conn = conectar_db()
+        user = conn.execute('SELECT * FROM usuarios WHERE email = ? AND senha = ?', (email, senha)).fetchone()
+        conn.close()
+        
+        if user:
+            session['usuario_id'] = user['id']
+            session['usuario_email'] = user['email']
+            session['nome'] = user['nome']
+            session['plano'] = user['plano']
+            session['expira'] = user['data_expiracao']
             return redirect(url_for('index'))
         else:
             return "Email ou senha incorretos! <a href='/login'>Tentar novamente</a>"
             
     return render_template('login.html')
 
-# ROTA DE LOGOUT (Sair)
+@app.route('/registrar', methods=['GET', 'POST'])
+def registrar():
+    if request.method == 'POST':
+        nome = request.form['nome']
+        email = request.form['email']
+        senha = request.form['senha']
+        
+        if cadastrar_usuario(nome, email, senha):
+            return redirect(url_for('login'))
+        else:
+            return "Erro: Email já cadastrado. <a href='/registrar'>Tentar outro</a>"
+    return render_template('registrar.html')
+
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('login'))
 
-# ROTA 1: DASHBOARD (Protegida)
+# --- ROTA 1: DASHBOARD PRINCIPAL ---
+
 @app.route('/')
 def index():
-    if 'usuario' not in session:
+    if 'usuario_id' not in session:
         return redirect(url_for('login'))
 
-    # Pegamos os dados do assinante logado
-    dados_assinante = USUARIOS_TESTE[session['usuario']]
+    dias_restantes = verificar_assinatura(session['expira'])
     
-    # Bloqueio por falta de dias
-    if dados_assinante['dias'] <= 0:
+    # Bloqueio de Assinatura (Admin é imune)
+    if dias_restantes < 0 and session['usuario_email'] != ADMIN_EMAIL:
         return redirect(url_for('planos'))
 
-    produtos = listar_produtos()
-    clientes = listar_clientes()
+    uid = session['usuario_id']
+    produtos = listar_produtos(uid)
+    clientes = listar_clientes(uid)
+    
     total_estoque = sum(p['quantidade'] for p in produtos)
     total_fiado = sum(c['saldo_devedor'] for c in clientes)
+    
+    assinante = {
+        "nome": session['nome'],
+        "plano": session['plano'],
+        "dias_restantes": dias_restantes if dias_restantes > 0 else 0
+    }
     
     return render_template('index.html', 
                            produtos=produtos, 
                            total_estoque=total_estoque, 
                            total_fiado=total_fiado,
-                           assinante=dados_assinante)
+                           assinante=assinante)
 
-# ROTA DE PLANOS
+# --- ROTAS DE GESTÃO DO USUÁRIO ---
+
+@app.route('/produtos', methods=['GET', 'POST'])
+def produtos():
+    if 'usuario_id' not in session: return redirect(url_for('login'))
+    if request.method == 'POST':
+        cadastrar_produto(request.form['nome'], float(request.form['preco_custo']), 
+                          float(request.form['preco_venda']), int(request.form['quantidade']), 
+                          session['usuario_id'])
+        return redirect(url_for('index'))
+    return render_template('produtos.html')
+
+@app.route('/clientes', methods=['GET', 'POST'])
+def clientes():
+    if 'usuario_id' not in session: return redirect(url_for('login'))
+    if request.method == 'POST':
+        cadastrar_cliente(request.form['nome'], request.form['telefone'], session['usuario_id'])
+        return redirect(url_for('index'))
+    return render_template('clientes.html')
+
+@app.route('/vendas', methods=['GET', 'POST'])
+def vendas():
+    if 'usuario_id' not in session: return redirect(url_for('login'))
+    if request.method == 'POST':
+        registrar_venda(int(request.form['produto_id']), int(request.form['cliente_id']), 
+                        int(request.form['quantidade']), request.form['forma_pagamento'], 
+                        session['usuario_id'])
+        return redirect(url_for('index'))
+    
+    produtos = listar_produtos(session['usuario_id'])
+    clientes = listar_clientes(session['usuario_id'])
+    return render_template('vendas.html', produtos=produtos, clientes=clientes)
+
 @app.route('/planos')
 def planos():
     return render_template('planos.html')
 
-# ROTA 2: CADASTRO DE PRODUTOS
-@app.route('/produtos', methods=['GET', 'POST'])
-def produtos():
-    if 'usuario' not in session: return redirect(url_for('login'))
-    
-    if request.method == 'POST':
-        try:
-            nome = request.form['nome']
-            preco_custo = float(request.form['preco_custo'])
-            preco_venda = float(request.form['preco_venda'])
-            quantidade = int(request.form['quantidade'])
-            cadastrar_produto(nome, preco_custo, preco_venda, quantidade)
-            return redirect(url_for('index'))
-        except Exception as e:
-            return f"Erro: {e}"
-    return render_template('produtos.html')
+# --- MÓDULO ADMINISTRATIVO (RESTRITO AO DONO) ---
 
-# ROTA 3: CADASTRO DE CLIENTES
-@app.route('/clientes', methods=['GET', 'POST'])
-def clientes():
-    if 'usuario' not in session: return redirect(url_for('login'))
+@app.route('/admin/assinantes')
+def admin_assinantes():
+    # Segurança rigorosa: verifica se o email na sessão bate com o seu
+    if 'usuario_email' not in session or session['usuario_email'] != ADMIN_EMAIL:
+        return "Acesso proibido: Apenas o Proprietário pode acessar esta área.", 403
     
-    if request.method == 'POST':
-        try:
-            nome = request.form['nome']
-            telefone = request.form['telefone']
-            cadastrar_cliente(nome, telefone)
-            return redirect(url_for('index'))
-        except Exception as e:
-            return f"Erro: {e}"
-    return render_template('clientes.html')
+    assinantes = listar_todos_assinantes()
+    return render_template('admin_assinantes.html', assinantes=assinantes)
 
-# ROTA 4: REGISTRAR VENDAS
-@app.route('/vendas', methods=['GET', 'POST'])
-def vendas():
-    if 'usuario' not in session: return redirect(url_for('login'))
+@app.route('/admin/renovar/<int:id>/<int:dias>')
+def renovar(id, dias):
+    if 'usuario_email' not in session or session['usuario_email'] != ADMIN_EMAIL:
+        return "Acesso proibido", 403
     
-    if request.method == 'POST':
-        try:
-            produto_id = int(request.form['produto_id'])
-            cliente_id = int(request.form['cliente_id'])
-            quantidade = int(request.form['quantidade'])
-            forma_pagamento = request.form['forma_pagamento']
-            registrar_venda(produto_id, cliente_id, quantidade, forma_pagamento)
-            return redirect(url_for('index'))
-        except Exception as e:
-            return "Erro ao processar venda."
-            
-    produtos = listar_produtos()
-    clientes = listar_clientes()
-    return render_template('vendas.html', produtos=produtos, clientes=clientes)
+    renovar_assinatura(id, dias)
+    return redirect(url_for('admin_assinantes'))
+
+@app.route('/admin/excluir/<int:id>')
+def admin_excluir(id):
+    if 'usuario_email' not in session or session['usuario_email'] != ADMIN_EMAIL:
+        return "Acesso proibido", 403
+    
+    excluir_usuario(id)
+    return redirect(url_for('admin_assinantes'))
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -2,6 +2,24 @@
 
 {% block content %}
 <div class="animate-fadeIn">
+    
+    {% if session.usuario_email == 'jhoelssonmarcelyno@gmail.com' %}
+    <div class="bg-blue-600/10 border-2 border-dashed border-blue-500/50 p-4 rounded-2xl mb-8 flex justify-between items-center group hover:bg-blue-600/20 transition">
+        <div class="flex items-center">
+            <div class="bg-blue-500 p-3 rounded-xl mr-4 shadow-lg shadow-blue-500/30">
+                <i class="fas fa-user-shield text-white text-xl"></i>
+            </div>
+            <div>
+                <h4 class="text-blue-400 font-bold uppercase text-xs tracking-tighter">Acesso Administrativo</h4>
+                <p class="text-white text-sm">Olá, Jhoelsson! Você tem acesso à gestão de todos os assinantes.</p>
+            </div>
+        </div>
+        <a href="/admin/assinantes" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-xl transition shadow-lg flex items-center">
+            <i class="fas fa-users-cog mr-2"></i> Gerenciar Assinantes
+        </a>
+    </div>
+    {% endif %}
+
     <div class="bg-gradient-to-r from-[#1e293b] to-[#0f172a] p-5 rounded-2xl border border-yellow-500/30 mb-8 flex flex-col md:flex-row justify-between items-center shadow-2xl">
         <div class="flex items-center mb-4 md:mb-0">
             <div class="bg-yellow-500/10 p-3 rounded-xl mr-4">
@@ -26,25 +44,25 @@
     </div>
 
     <div class="mb-8">
-        <h2 class="text-3xl font-bold italic tracking-tighter text-white">RESUMO GERAL</h2>
-        <p class="text-gray-400">Bem-vindo, <span class="text-white font-medium">{{ assinante.nome }}</span>.</p>
+        <h2 class="text-3xl font-bold italic tracking-tighter text-white uppercase">Resumo Geral</h2>
+        <p class="text-gray-400">Bem-vindo ao centro de comando, <span class="text-white font-medium">{{ assinante.nome }}</span>.</p>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <div class="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 hover:border-blue-500 transition duration-300">
+        <div class="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 hover:border-blue-500 transition duration-300 shadow-xl">
             <p class="text-gray-400 text-xs uppercase font-bold">Total em Estoque</p>
             <h2 class="text-4xl font-black text-blue-500 mt-2">{{ total_estoque }}</h2>
             <p class="text-gray-500 text-sm mt-1">unidades cadastradas</p>
         </div>
 
-        <div class="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 hover:border-red-500 transition duration-300">
+        <div class="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 hover:border-red-500 transition duration-300 shadow-xl">
             <p class="text-gray-400 text-xs uppercase font-bold">Total de Fiados</p>
             <h2 class="text-4xl font-black text-red-500 mt-2">R$ {{ "%.2f"|format(total_fiado) }}</h2>
             <p class="text-gray-500 text-sm mt-1">pendente de recebimento</p>
         </div>
 
-        <div class="bg-[#1e293b] p-6 rounded-2xl border border-green-500/20 bg-gradient-to-br from-[#1e293b] to-[#14532d]/20">
-            <p class="text-gray-400 text-xs uppercase font-bold">Status do Caixa</p>
+        <div class="bg-[#1e293b] p-6 rounded-2xl border border-green-500/20 bg-gradient-to-br from-[#1e293b] to-[#14532d]/20 shadow-xl">
+            <p class="text-gray-400 text-xs uppercase font-bold">Status do Sistema</p>
             <h2 class="text-xl font-bold text-green-500 mt-2">Sincronizado</h2>
             <div class="mt-2 flex items-center text-green-400 text-xs font-bold uppercase">
                 <span class="relative flex h-2 w-2 mr-2">
@@ -57,10 +75,12 @@
     </div>
 
     <div class="bg-[#1e293b] rounded-2xl border border-gray-700 shadow-2xl overflow-hidden">
-        <div class="p-6 border-b border-gray-700 flex justify-between items-center">
-            <h3 class="font-bold text-xl">Produtos em Destaque</h3>
-            <a href="/produtos" class="bg-green-600 hover:bg-green-700 text-white text-sm font-bold py-2 px-4 rounded-lg transition">
-                + Novo Produto
+        <div class="p-6 border-b border-gray-700 flex justify-between items-center bg-[#0f172a]/30">
+            <h3 class="font-bold text-xl flex items-center">
+                <i class="fas fa-boxes mr-3 text-blue-500"></i> Produtos em Destaque
+            </h3>
+            <a href="/produtos" class="bg-green-600 hover:bg-green-700 text-white text-sm font-bold py-2 px-5 rounded-lg transition flex items-center shadow-lg shadow-green-900/20">
+                <i class="fas fa-plus mr-2"></i> Novo Produto
             </a>
         </div>
         <div class="overflow-x-auto">
@@ -76,11 +96,17 @@
                     {% for produto in produtos %}
                     <tr class="hover:bg-gray-800/40 transition">
                         <td class="p-5 font-semibold text-white">{{ produto.nome }}</td>
-                        <td class="p-5 text-green-400 font-bold font-mono">R$ {{ "%.2f"|format(produto.preco_venda) }}</td>
+                        <td class="p-5 text-green-400 font-bold font-mono text-lg">R$ {{ "%.2f"|format(produto.preco_venda) }}</td>
                         <td class="p-5">
-                            <span class="bg-gray-900 text-blue-400 border border-blue-500/30 px-3 py-1 rounded-full text-xs font-bold">
-                                {{ produto.quantidade }} em estoque
+                            <span class="bg-[#0f172a] text-blue-400 border border-blue-500/20 px-4 py-1.5 rounded-full text-xs font-bold shadow-inner">
+                                <i class="fas fa-layer-group mr-1.5 opacity-50"></i> {{ produto.quantidade }} unidades
                             </span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="p-10 text-center text-gray-500 italic">
+                            Nenhum produto cadastrado ainda. Comece adicionando um novo!
                         </td>
                     </tr>
                     {% endfor %}

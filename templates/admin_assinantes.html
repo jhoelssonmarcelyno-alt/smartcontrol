@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel do Proprietário - SmartControl</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-[#0f172a] text-white p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+            <div>
+                <h1 class="text-3xl font-bold italic text-blue-500">SmartControl <span class="text-white not-italic text-sm ml-2 bg-blue-600 px-2 py-1 rounded">ADMIN</span></h1>
+                <p class="text-gray-400 mt-1">Gestão Estratégica de Clientes e Assinaturas</p>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <a href="/" class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-xl transition text-sm font-medium border border-gray-700">
+                    <i class="fas fa-arrow-left mr-2"></i> Dashboard
+                </a>
+                <a href="/logout" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl transition text-sm font-bold shadow-lg shadow-red-900/20">
+                    <i class="fas fa-sign-out-alt mr-2"></i> Sair
+                </a>
+            </div>
+        </div>
+
+        <div class="bg-[#1e293b] rounded-3xl border border-gray-700 overflow-hidden shadow-2xl">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead class="bg-[#0f172a] text-gray-400 text-xs uppercase font-bold">
+                        <tr>
+                            <th class="p-6">Cliente / E-mail</th>
+                            <th class="p-6">Status do Plano</th>
+                            <th class="p-6">Data de Expiração</th>
+                            <th class="p-6 text-center">Ações de Gestão</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-800">
+                        {% for asse in assinantes %}
+                        <tr class="hover:bg-gray-800/40 transition">
+                            <td class="p-6">
+                                <div class="font-bold text-lg text-white leading-tight">{{ asse.nome }}</div>
+                                <div class="text-sm text-blue-400/80 italic">{{ asse.email }}</div>
+                            </td>
+                            <td class="p-6">
+                                <span class="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">
+                                    {{ asse.plano }}
+                                </span>
+                            </td>
+                            <td class="p-6">
+                                <div class="font-mono text-sm text-gray-300 bg-[#0f172a] px-3 py-1 rounded-lg inline-block">
+                                    {{ asse.data_expiracao }}
+                                </div>
+                            </td>
+                            <td class="p-6">
+                                <div class="flex justify-center items-center gap-2">
+                                    <div class="flex bg-[#0f172a] p-1 rounded-xl border border-gray-700 mr-2">
+                                        <a href="/admin/renovar/{{ asse.id }}/30" title="+30 Dias" class="hover:bg-emerald-600 text-emerald-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition">
+                                            +30D
+                                        </a>
+                                        <a href="/admin/renovar/{{ asse.id }}/90" title="+90 Dias" class="hover:bg-blue-600 text-blue-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition border-l border-gray-800">
+                                            +90D
+                                        </a>
+                                        <a href="/admin/renovar/{{ asse.id }}/365" title="+1 Ano" class="hover:bg-amber-500 text-amber-500 hover:text-black px-3 py-1.5 rounded-lg text-xs font-bold transition border-l border-gray-800">
+                                            +1A
+                                        </a>
+                                    </div>
+
+                                    {% if asse.email != session.usuario_email %}
+                                    <a href="/admin/excluir/{{ asse.id }}" 
+                                       onclick="return confirm('ATENÇÃO: Deseja realmente EXCLUIR o cliente {{ asse.nome }}? Todos os produtos e vendas dele serão apagados permanentemente.')"
+                                       class="bg-red-500/10 hover:bg-red-600 text-red-500 hover:text-white p-2.5 rounded-xl transition border border-red-500/20"
+                                       title="Excluir Assinante">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            {% if not assinantes %}
+            <div class="p-20 text-center">
+                <i class="fas fa-users text-gray-700 text-5xl mb-4"></i>
+                <p class="text-gray-500 italic">Nenhum assinante cadastrado até o momento.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="mt-6 text-center">
+            <p class="text-gray-600 text-xs">SmartControl Admin v2.0 • Sistema de monitoramento em tempo real</p>
+        </div>
+    </div>
+
+</body>
+</html>

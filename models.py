@@ -1,141 +1,118 @@
 import sqlite3
+from datetime import datetime, timedelta
 
 DATABASE = 'database/smartcontrol.db'
 
-def get_db_connection():
+def conectar_db():
     conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row  # Isso permite acessar colunas pelo nome (ex: produto['nome'])
+    conn.row_factory = sqlite3.Row
     return conn
 
-# --- FUNÇÕES DE PRODUTOS ---
+# --- SISTEMA DE ASSINANTES E ADMIN ---
 
-def cadastrar_produto(nome, preco_custo, preco_venda, quantidade):
-    conn = get_db_connection()
-    conn.execute('''
-        INSERT INTO produtos (nome, preco_custo, preco_venda, quantidade)
-        VALUES (?, ?, ?, ?)
-    ''', (nome, preco_custo, preco_venda, quantidade))
+def cadastrar_usuario(nome, email, senha):
+    conn = conectar_db()
+    cursor = conn.cursor()
+    # 7 dias de teste grátis por padrão
+    expiracao = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d %H:%M:%S')
+    try:
+        cursor.execute("""
+            INSERT INTO usuarios (nome, email, senha, plano, data_expiracao)
+            VALUES (?, ?, ?, 'Teste Grátis', ?)
+        """, (nome, email, senha, expiracao))
+        conn.commit()
+        return True
+    except:
+        return False
+    finally:
+        conn.close()
+
+def listar_todos_assinantes():
+    conn = conectar_db()
+    assinantes = conn.execute('SELECT id, nome, email, plano, data_expiracao FROM usuarios').fetchall()
+    conn.close()
+    return assinantes
+
+def renovar_assinatura(usuario_id, dias):
+    conn = conectar_db()
+    cursor = conn.cursor()
+    nova_expiracao = (datetime.now() + timedelta(days=dias)).strftime('%Y-%m-%d %H:%M:%S')
+    plano_nome = f"Plano {dias} Dias"
+    
+    cursor.execute("""
+        UPDATE usuarios 
+        SET data_expiracao = ?, plano = ? 
+        WHERE id = ?
+    """, (nova_expiracao, plano_nome, usuario_id))
+    
     conn.commit()
     conn.close()
-    print(f"📦 Produto '{nome}' cadastrado com sucesso!")
 
-def listar_produtos():
-    conn = get_db_connection()
-    produtos = conn.execute('SELECT * FROM produtos').fetchall()
+# FUNÇÃO QUE ESTAVA FALTANDO:
+def excluir_usuario(usuario_id):
+    conn = conectar_db()
+    cursor = conn.cursor()
+    try:
+        # Limpa todos os dados vinculados a esse usuário antes de deletá-lo
+        cursor.execute("DELETE FROM produtos WHERE usuario_id = ?", (usuario_id,))
+        cursor.execute("DELETE FROM clientes WHERE usuario_id = ?", (usuario_id,))
+        cursor.execute("DELETE FROM vendas WHERE usuario_id = ?", (usuario_id,))
+        # Por fim, deleta o usuário
+        cursor.execute("DELETE FROM usuarios WHERE id = ?", (usuario_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+# --- FUNÇÕES DE NEGÓCIO (PRODUTOS, CLIENTES, VENDAS) ---
+
+def cadastrar_produto(nome, preco_custo, preco_venda, quantidade, usuario_id):
+    conn = conectar_db()
+    conn.execute('''
+        INSERT INTO produtos (nome, preco_custo, preco_venda, quantidade, usuario_id)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (nome, preco_custo, preco_venda, quantidade, usuario_id))
+    conn.commit()
+    conn.close()
+
+def listar_produtos(usuario_id):
+    conn = conectar_db()
+    produtos = conn.execute('SELECT * FROM produtos WHERE usuario_id = ?', (usuario_id,)).fetchall()
     conn.close()
     return produtos
 
-# --- FUNÇÕES DE CLIENTES (FIADOS) ---
-
-def cadastrar_cliente(nome, telefone):
-    conn = get_db_connection()
+def cadastrar_cliente(nome, telefone, usuario_id):
+    conn = conectar_db()
     conn.execute('''
-        INSERT INTO clientes (nome, telefone)
-        VALUES (?, ?)
-    ''', (nome, telefone))
+        INSERT INTO clientes (nome, telefone, usuario_id)
+        VALUES (?, ?, ?)
+    ''', (nome, telefone, usuario_id))
     conn.commit()
     conn.close()
-    print(f"👤 Cliente '{nome}' cadastrado com sucesso!")
 
-def listar_clientes():
-    conn = get_db_connection()
-    clientes = conn.execute('SELECT * FROM clientes').fetchall()
+def listar_clientes(usuario_id):
+    conn = conectar_db()
+    clientes = conn.execute('SELECT * FROM clientes WHERE usuario_id = ?', (usuario_id,)).fetchall()
     conn.close()
     return clientes
 
-def atualizar_debito_cliente(cliente_id, valor):
-    conn = get_db_connection()
-    conn.execute('''
-        UPDATE clientes 
-        SET saldo_devedor = saldo_devedor + ? 
-        WHERE id = ?
-    ''', (valor, cliente_id))
-    conn.commit()
-    conn.close()
-
-def registrar_venda(produto_id, cliente_id, quantidade, valor_total, pago):
-    conn = get_db_connection()
-    
-    # 1. Registra a venda
-    conn.execute('''
-        INSERT INTO vendas (produto_id, cliente_id, quantidade, valor_total, pago)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (produto_id, cliente_id, quantidade, valor_total, pago))
-    
-    # 2. Baixa no estoque
-    conn.execute('''
-        UPDATE produtos SET quantidade = quantidade - ? WHERE id = ?
-    ''', (quantidade, produto_id))
-    
-    # 3. Se for FIADO (pago = 0), atualiza a dívida do cliente
-    if not pago and cliente_id:
-        conn.execute('''
-            UPDATE clientes SET saldo_devedor = saldo_devedor + ? WHERE id = ?
-        ''', (valor_total, cliente_id))
-    
-    conn.commit()
-    conn.close()
-    print(f"💰 Venda de R$ {valor_total} registrada!")
-
-    def registrar_venda(produto_id, cliente_id, quantidade, forma_pagamento):
-     conn = conectar_db()
+def registrar_venda(produto_id, cliente_id, quantidade, forma_pagamento, usuario_id):
+    conn = conectar_db()
     cursor = conn.cursor()
     
-    # 1. Busca o preço e o estoque atual do produto
-    cursor.execute("SELECT preco_venda, quantidade FROM produtos WHERE id = ?", (produto_id,))
+    cursor.execute("SELECT preco_venda, quantidade FROM produtos WHERE id = ? AND usuario_id = ?", (produto_id, usuario_id))
     produto = cursor.fetchone()
     
     if produto and produto['quantidade'] >= quantidade:
         valor_total = produto['preco_venda'] * quantidade
-        
-        # 2. Diminui o estoque
         cursor.execute("UPDATE produtos SET quantidade = quantidade - ? WHERE id = ?", (quantidade, produto_id))
         
-        # 3. Se for FIADO, aumenta a dívida do cliente
-        if forma_pagamento == 'fiado':
+        if forma_pagamento == 'fiado' and cliente_id:
             cursor.execute("UPDATE clientes SET saldo_devedor = saldo_devedor + ? WHERE id = ?", (valor_total, cliente_id))
             
-        # 4. Registra a venda na tabela de vendas
         cursor.execute("""
-            INSERT INTO vendas (produto_id, cliente_id, quantidade, valor_total, forma_pagamento)
-            VALUES (?, ?, ?, ?, ?)
-        """, (produto_id, cliente_id, quantidade, valor_total, forma_pagamento))
+            INSERT INTO vendas (produto_id, cliente_id, quantity, valor_total, forma_pagamento, usuario_id)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (produto_id, cliente_id, quantidade, valor_total, forma_pagamento, usuario_id))
         
         conn.commit()
     conn.close()
-
-    def criar_tabela_assinantes():
-     conn = conectar_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS assinantes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            senha TEXT NOT NULL,
-            data_cadastro DATETIME DEFAULT CURRENT_TIMESTAMP,
-            data_expiracao DATETIME,
-            plano TEXT -- '7_dias', '30_dias', '90_dias', '180_dias', '365_dias'
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-    def criar_tabela_usuarios():
-     conn = conectar_db()
-    cursor = conn.cursor()
-    # Criamos a tabela de usuários (assinantes)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS usuarios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            senha TEXT NOT NULL,
-            plano TEXT DEFAULT 'teste',
-            data_expiracao DATETIME
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-# Execute essa função uma vez no seu terminal ou no final do arquivo para criar a tabela
