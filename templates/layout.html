@@ -16,12 +16,19 @@
     <nav class="bg-[#1e293b] border-b border-white/5 shadow-2xl">
         <div class="container mx-auto px-6 py-3 flex justify-between items-center">
             
-            <div class="flex items-center space-x-2 cursor-pointer" onclick="window.location.href='/'">
-                <div class="bg-green-500 p-2 rounded-lg shadow-lg shadow-green-500/20">
-                    <i class="fas fa-rocket text-[#1e293b]"></i>
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="window.location.href='/'">
+                <div class="relative w-10 h-10 overflow-hidden rounded-lg shadow-lg shadow-green-500/20">
+                    {% if session.get('usuario_logo') %}
+                        <img src="{{ url_for('static', filename='uploads/' + session['usuario_logo']) }}" 
+                             class="w-full h-full object-cover">
+                    {% else %}
+                        <div class="bg-green-500 w-full h-full flex items-center justify-center">
+                            <i class="fas fa-rocket text-[#1e293b]"></i>
+                        </div>
+                    {% endif %}
                 </div>
                 <h1 class="text-xl font-black tracking-tighter uppercase italic text-white">
-                    Smart<span class="text-green-500">Control</span>
+                    {{ session.get('nome', 'Smart') }}<span class="text-green-500">Control</span>
                 </h1>
             </div>
             
@@ -36,6 +43,10 @@
 
                 <a href="/clientes" class="flex items-center px-4 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition">
                     <i class="fas fa-user-friends mr-2 text-emerald-400"></i> Clientes
+                </a>
+
+                <a href="/configuracoes" class="flex items-center px-4 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition" title="Configurações">
+                    <i class="fas fa-cog mr-1 text-gray-400"></i>
                 </a>
 
                 <a href="/vendas" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold transition flex items-center shadow-lg shadow-green-900/40">

@@ -6,12 +6,25 @@ from models import (listar_produtos, listar_clientes, cadastrar_produto,
                     obter_dados_assinante, obter_resumo_financeiro, 
                     listar_vendas)
 import json
+import os
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.secret_key = 'smartcontrol_chave_secreta_99'
 
+# Configuração de Upload de Logo
+UPLOAD_FOLDER = 'static/uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Garante que a pasta de uploads exista
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
 # E-mail do administrador mestre
 ADMIN_EMAIL = "jhoelssonmarcelyno@gmail.com"
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # --- LOGIN / REGISTRAR / LOGOUT ---
 @app.route('/login', methods=['GET', 'POST'])
@@ -22,10 +35,14 @@ def login():
         conn = conectar_db()
         user = conn.execute('SELECT * FROM usuarios WHERE email = ? AND senha = ?', (email, senha)).fetchone()
         conn.close()
+        # No app.py, dentro da função login():
         if user:
             session['usuario_id'] = user['id']
             session['usuario_email'] = user['email']
             session['nome'] = user['nome']
+            # CORREÇÃO AQUI: Garantir que a logo seja carregada para a sessão
+            # Se o campo 'logo' existir e não for nulo, salva na sessão
+            session['usuario_logo'] = user['logo'] if 'logo' in user.keys() else None
             return redirect(url_for('index'))
     return render_template('login.html')
 
@@ -59,17 +76,49 @@ def index():
     return render_template('index.html', assinante=assinante, resumo=resumo, 
                            produtos=produtos[:5], total_estoque=total_estoque, total_fiado=total_fiado)
 
-# --- NOVA ROTA: PLANOS (Corrige o erro do botão amarelo) ---
+# --- CONFIGURAÇÕES (ALTERAR NOME E LOGO) ---
+@app.route('/configuracoes', methods=['GET', 'POST'])
+def configuracoes():
+    if 'usuario_id' not in session:
+        return redirect(url_for('login'))
+    
+    usuario_id = session['usuario_id']
+
+    if request.method == 'POST':
+        # O 'name' no HTML deve ser exatamente 'nome'
+        novo_nome = request.form.get('nome') 
+        arquivo = request.files.get('logo')
+        
+        filename = session.get('usuario_logo')
+
+        if arquivo and arquivo.filename != '':
+            # Gera um nome seguro para a imagem
+            ext = arquivo.filename.rsplit('.', 1)[1].lower()
+            filename = f"logo_user_{usuario_id}.{ext}"
+            arquivo.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+        # Salva no Banco de Dados
+        conn = conectar_db()
+        conn.execute('UPDATE usuarios SET nome = ?, logo = ? WHERE id = ?', 
+                     (novo_nome, filename, usuario_id))
+        conn.commit()
+        conn.close()
+        
+        # ATUALIZA A SESSÃO (Isso faz o nome mudar no topo da página na hora)
+        session['nome'] = novo_nome
+        session['usuario_logo'] = filename
+        
+        return redirect(url_for('index'))
+
+    return render_template('configuracoes.html')
+
+# --- PLANOS ---
 @app.route('/planos')
 def planos():
     if 'usuario_id' not in session:
         return redirect(url_for('login'))
-    
-    # Se VOCÊ (Admin) clicar, redireciona direto para a gestão de assinantes
     if session.get('usuario_email') == ADMIN_EMAIL:
         return redirect(url_for('admin_assinantes'))
-    
-    # Se for um usuário comum, mostra a página de planos (ou uma mensagem)
     return "<h1>Área de Renovação</h1><p>Em breve você poderá renovar seu plano aqui.</p><a href='/'>Voltar</a>"
 
 # --- PRODUTOS E CLIENTES ---

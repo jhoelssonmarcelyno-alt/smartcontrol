@@ -1,0 +1,48 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto animate-fadeIn">
+    <div class="bg-[#1e293b] p-8 rounded-3xl border border-gray-700 shadow-2xl">
+        <h2 class="text-2xl font-bold mb-6 text-white italic flex items-center">
+            <i class="fas fa-cog mr-3 text-blue-500"></i> Configurações do Perfil
+        </h2>
+        
+        <form action="/configuracoes" method="POST" enctype="multipart/form-data" class="space-y-6">
+            <div>
+                <label class="block text-gray-400 text-sm font-bold mb-2 uppercase tracking-widest">Nome do Estabelecimento</label>
+                <input type="text" name="nome" value="{{ session.nome }}" required
+                       class="w-full bg-[#0f172a] border border-gray-700 rounded-xl p-4 text-white focus:border-blue-500 transition outline-none shadow-inner">
+            </div>
+
+            <div>
+                <label class="block text-gray-400 text-sm font-bold mb-2 uppercase tracking-widest">Logo da Empresa</label>
+                
+                <div class="mb-4 flex items-center space-x-4">
+                    <div class="w-20 h-20 rounded-xl border border-gray-700 overflow-hidden bg-[#0f172a] flex items-center justify-center">
+                        {% if session.get('usuario_logo') %}
+                            <img src="{{ url_for('static', filename='uploads/' + session['usuario_logo']) }}" class="w-full h-full object-cover">
+                        {% else %}
+                            <i class="fas fa-image text-gray-600 text-3xl"></i>
+                        {% endif %}
+                    </div>
+                    <p class="text-xs text-gray-500 italic">Esta é a imagem que aparece no topo do seu painel.</p>
+                </div>
+
+                <div class="flex items-center justify-center w-full">
+                    <label class="flex flex-col w-full h-32 border-2 border-dashed border-gray-700 hover:bg-gray-800 hover:border-blue-500 transition rounded-xl cursor-pointer group">
+                        <div class="flex flex-col items-center justify-center pt-7">
+                            <i class="fas fa-cloud-upload-alt text-gray-500 group-hover:text-blue-500 text-2xl mb-2 transition"></i>
+                            <p class="text-sm text-gray-500 group-hover:text-gray-300">Clique para selecionar nova imagem</p>
+                        </div>
+                        <input type="file" name="logo" class="hidden" accept="image/*" />
+                    </label>
+                </div>
+            </div>
+
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition shadow-lg shadow-blue-900/20 transform hover:-translate-y-1">
+                <i class="fas fa-save mr-2"></i> Salvar Alterações
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
