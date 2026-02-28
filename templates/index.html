@@ -44,14 +44,48 @@
         </div>
     </div>
 
-    <div class="mb-8 flex justify-between items-end">
-        <div>
-            <h2 class="text-3xl font-black italic tracking-tighter text-white uppercase">Resumo Financeiro</h2>
-            <p class="text-gray-400 font-medium">Performance de hoje para <span class="text-white underline decoration-green-500">{{ session.nome }}</span></p>
+    <div class="mb-10">
+        <h2 class="text-xl font-black italic tracking-tighter text-white uppercase mb-4 flex items-center">
+            <span class="w-8 h-[2px] bg-emerald-500 mr-2"></span> Ações Rápidas
+        </h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <a href="{{ url_for('vendas') }}" class="bg-[#1e293b] p-5 rounded-2xl border border-gray-700 hover:border-emerald-500 transition-all group shadow-xl">
+                <div class="bg-emerald-500/10 w-12 h-12 rounded-xl flex items-center justify-center mb-3 group-hover:bg-emerald-600 transition-colors">
+                    <i class="fas fa-cart-plus text-emerald-500 group-hover:text-white text-xl"></i>
+                </div>
+                <p class="text-white font-bold uppercase text-xs">Nova Venda</p>
+                <p class="text-gray-500 text-[10px]">Iniciar pedido</p>
+            </a>
+
+            <a href="{{ url_for('produtos') }}" class="bg-[#1e293b] p-5 rounded-2xl border border-gray-700 hover:border-orange-500 transition-all group shadow-xl">
+                <div class="bg-orange-500/10 w-12 h-12 rounded-xl flex items-center justify-center mb-3 group-hover:bg-orange-500 transition-colors">
+                    <i class="fas fa-box text-orange-500 group-hover:text-white text-xl"></i>
+                </div>
+                <p class="text-white font-bold uppercase text-xs">Estoque</p>
+                <p class="text-gray-500 text-[10px]">Gerenciar itens</p>
+            </a>
+
+            <a href="{{ url_for('clientes') }}" class="bg-[#1e293b] p-5 rounded-2xl border border-gray-700 hover:border-purple-500 transition-all group shadow-xl">
+                <div class="bg-purple-500/10 w-12 h-12 rounded-xl flex items-center justify-center mb-3 group-hover:bg-purple-500 transition-colors">
+                    <i class="fas fa-users text-purple-600 group-hover:text-white text-xl"></i>
+                </div>
+                <p class="text-white font-bold uppercase text-xs">Clientes</p>
+                <p class="text-gray-500 text-[10px]">Ver cadastros</p>
+            </a>
+
+            <a href="{{ url_for('relatorios_painel') }}" class="bg-[#1e293b] p-5 rounded-2xl border border-gray-700 hover:border-blue-500 transition-all group shadow-xl">
+                <div class="bg-blue-500/10 w-12 h-12 rounded-xl flex items-center justify-center mb-3 group-hover:bg-blue-600 transition-colors">
+                    <i class="fas fa-chart-line text-blue-500 group-hover:text-white text-xl"></i>
+                </div>
+                <p class="text-white font-bold uppercase text-xs">Relatórios</p>
+                <p class="text-gray-500 text-[10px]">Ver desempenho</p>
+            </a>
         </div>
-        <a href="{{ url_for('vendas') }}" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-6 rounded-xl transition shadow-lg flex items-center mb-1">
-            <i class="fas fa-cart-plus mr-2"></i> Nova Venda
-        </a>
+    </div>
+
+    <div class="mb-8">
+        <h2 class="text-3xl font-black italic tracking-tighter text-white uppercase">Resumo Financeiro</h2>
+        <p class="text-gray-400 font-medium">Performance de hoje para <span class="text-white underline decoration-green-500">{{ session.nome }}</span></p>
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-10">
@@ -67,11 +101,11 @@
             <p class="text-gray-500 text-xs mt-1">Descontando o custo</p>
         </div>
 
-        <a href="{{ url_for('produtos') }}" class="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 hover:border-orange-500 transition duration-300 shadow-xl block group text-left">
-            <p class="text-gray-400 text-xs uppercase font-bold group-hover:text-orange-400">Total em Estoque</p>
+        <div class="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 hover:border-orange-500 transition duration-300 shadow-xl">
+            <p class="text-gray-400 text-xs uppercase font-bold">Total em Estoque</p>
             <h2 class="text-4xl font-black text-orange-500 mt-2">{{ total_estoque }}</h2>
-            <p class="text-gray-500 text-xs mt-1">Itens disponíveis <i class="fas fa-external-link-alt ml-1"></i></p>
-        </a>
+            <p class="text-gray-500 text-xs mt-1">Itens disponíveis</p>
+        </div>
 
         <div class="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 hover:border-red-500 transition duration-300 shadow-xl text-left">
             <p class="text-gray-400 text-xs uppercase font-bold">Total de Fiados</p>

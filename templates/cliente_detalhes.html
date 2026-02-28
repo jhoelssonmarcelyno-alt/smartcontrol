@@ -1,0 +1,91 @@
+{% extends 'layout.html' %}
+{% block content %}
+<div class="animate-fadeIn">
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-3xl font-black text-white uppercase italic tracking-tighter">Perfil: {{ cliente.nome }}</h2>
+        <a href="/clientes" class="text-gray-400 hover:text-white transition flex items-center bg-gray-800 px-4 py-2 rounded-xl border border-gray-700">
+            <i class="fas fa-arrow-left mr-2"></i> Voltar
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 shadow-xl">
+            <h3 class="text-blue-500 font-bold mb-4 uppercase text-xs tracking-widest">Controle de Crédito</h3>
+            <form action="{{ url_for('configurar_fiado', id=cliente.id) }}" method="POST" class="space-y-4">
+                <div class="flex items-center justify-between bg-[#0f172a] p-3 rounded-lg border border-gray-700">
+                    <span class="text-gray-300 text-sm">Permitir Fiado?</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" name="permite_fiado" class="sr-only peer" {% if cliente.permite_fiado %}checked{% endif %}>
+                        <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+                <div>
+                    <label class="text-[10px] text-gray-500 block mb-1 uppercase font-bold">Limite de Crédito (R$)</label>
+                    <input type="number" step="0.01" name="limite_fiado" value="{{ cliente.limite_fiado }}" class="w-full bg-[#0f172a] border border-gray-600 rounded-lg p-3 text-white focus:border-blue-500 outline-none">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl transition text-xs uppercase tracking-widest shadow-lg shadow-blue-900/20">
+                    Salvar Ajustes
+                </button>
+            </form>
+        </div>
+
+        <div class="bg-[#1e293b] p-6 rounded-2xl border {% if cliente.saldo_devedor > cliente.limite_fiado and cliente.limite_fiado > 0 %}border-red-500{% else %}border-gray-700{% endif %} shadow-xl flex flex-col justify-center">
+            <p class="text-gray-400 text-xs font-bold uppercase tracking-widest">Dívida em Aberto</p>
+            <h2 class="text-5xl font-black {% if cliente.saldo_devedor > 0 %}text-red-500{% else %}text-emerald-500{% endif %} mt-2">
+                R$ {{ "%.2f"|format(cliente.saldo_devedor) }}
+            </h2>
+            <div class="mt-4 p-3 bg-black/20 rounded-lg">
+                <p class="text-[10px] text-gray-500 uppercase font-bold">Disponível para Fiado</p>
+                <p class="text-sm font-mono text-white">R$ {{ "%.2f"|format(cliente.limite_fiado - cliente.saldo_devedor) }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-[#1e293b] rounded-3xl border border-gray-700 overflow-hidden shadow-2xl">
+        <div class="p-5 border-b border-gray-700 bg-gray-800/30">
+            <h3 class="text-gray-300 font-black uppercase text-sm tracking-widest italic">Histórico Completo de Compras</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-800/50 text-gray-400 text-[10px] uppercase tracking-widest">
+                        <th class="p-5">Data</th>
+                        <th class="p-5">Produto</th>
+                        <th class="p-5 text-center">Qtd</th>
+                        <th class="p-5">Valor Total</th>
+                        <th class="p-5">Pagamento</th>
+                    </tr>
+                </thead>
+                <tbody class="text-gray-300">
+                    {% if historico %}
+                        {% for item in historico %}
+                        <tr class="border-t border-gray-700/50 hover:bg-white/5 transition">
+                            <td class="p-5 text-sm text-gray-400">
+                                {{ item.data_formatada or item.data }}
+                            </td>
+                            <td class="p-5 font-bold text-white uppercase italic text-sm">{{ item.produto }}</td>
+                            <td class="p-5 text-center font-mono bg-white/5">{{ item.quantidade }}</td>
+                            <td class="p-5 font-black text-white">R$ {{ "%.2f"|format(item.valor_total) }}</td>
+                            <td class="p-5">
+                                <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter
+                                    {% if item.forma_pagamento.lower() == 'fiado' %}
+                                        bg-red-500/10 text-red-500 border border-red-500/20
+                                    {% else %}
+                                        bg-emerald-500/10 text-emerald-500 border border-emerald-500/20
+                                    {% endif %}">
+                                    {{ item.forma_pagamento }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="p-10 text-center text-gray-500 italic">Este cliente ainda não realizou compras.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -41,35 +41,13 @@
                 </h1>
             </div>
             
-            <div class="hidden md:flex items-center space-x-1">
-                <a href="/" class="flex items-center px-4 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition group">
-                    <i class="fas fa-chart-line mr-2 text-blue-400 group-hover:scale-110 transition"></i> Dashboard
-                </a>
-                
-                <a href="/produtos" class="flex items-center px-4 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition group">
-                    <i class="fas fa-boxes mr-2 text-purple-400 group-hover:scale-110 transition"></i> Estoque
+            <div class="flex items-center space-x-6">
+                <a href="/configuracoes" class="text-gray-400 hover:text-white transition group" title="Configurações">
+                    <i class="fas fa-cog group-hover:rotate-90 transition duration-500"></i>
                 </a>
 
-                <a href="/clientes" class="flex items-center px-4 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition group">
-                    <i class="fas fa-user-friends mr-2 text-emerald-400 group-hover:scale-110 transition"></i> Clientes
-                </a>
+                <div class="border-l border-white/10 h-6"></div>
 
-                <a href="/relatorios_painel" class="flex items-center px-4 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition group">
-                    <i class="fas fa-chart-pie mr-2 text-orange-400 group-hover:scale-110 transition"></i> Relatórios
-                </a>
-
-                <a href="/configuracoes" class="flex items-center px-4 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition group" title="Configurações">
-                    <i class="fas fa-cog text-gray-400 group-hover:rotate-90 transition duration-500"></i>
-                </a>
-
-                <div class="pl-4">
-                    <a href="/vendas" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-xl font-bold transition flex items-center shadow-lg shadow-green-900/40 transform hover:-translate-y-0.5">
-                        <i class="fas fa-shopping-cart mr-2"></i> Nova Venda
-                    </a>
-                </div>
-            </div>
-
-            <div class="flex items-center border-l border-white/10 ml-4 pl-4">
                 <a href="/logout" class="text-gray-400 hover:text-red-500 transition-colors flex items-center font-bold text-xs uppercase tracking-widest">
                     <i class="fas fa-power-off mr-2"></i> Sair
                 </a>
@@ -77,12 +55,12 @@
         </div>
     </nav>
 
-    <main class="container mx-auto p-6 min-h-[calc(100-200px)]">
+    <main class="container mx-auto p-6 min-h-[calc(100vh-200px)]">
         {% block content %}{% endblock %}
     </main>
 
     <footer class="text-center py-10 text-gray-600 text-xs uppercase tracking-widest border-t border-white/5 mt-10">
-        &copy; 2024 SmartControl System - Todos os direitos reservados
+        &copy; 2026 SmartControl System - Todos os direitos reservados
     </footer>
 
 </body>

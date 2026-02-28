@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprovante de Venda #{{ venda.id }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 flex justify-center p-4">
+    <div class="bg-white w-full max-w-sm shadow-xl rounded-lg overflow-hidden border-t-8 border-blue-600">
+        
+        <div class="p-6 text-center border-b bg-white">
+            {% if venda.usuario_logo %}
+                <img src="{{ url_for('static', filename='uploads/' + venda.usuario_logo) }}" 
+                     alt="Logo" class="mx-auto h-16 w-auto mb-2 object-contain">
+            {% endif %}
+            <h1 class="text-xl font-black text-gray-800 uppercase italic">
+                {{ venda.empresa_nome if venda.empresa_nome else 'SmartControl' }}
+            </h1>
+            <p class="text-gray-500 text-[10px] uppercase tracking-tighter">Comprovante de Venda</p>
+        </div>
+
+        <div class="p-6 space-y-4">
+            <div class="flex justify-between text-sm">
+                <span class="text-gray-500">Data:</span>
+                <span class="font-bold">{{ venda.data }}</span>
+            </div>
+            <div class="flex justify-between text-sm">
+                <span class="text-gray-500">Cliente:</span>
+                <span class="font-bold text-blue-600 uppercase">{{ venda.cliente_nome or 'Consumidor' }}</span>
+            </div>
+            
+            <div class="border-t border-dashed pt-4">
+                <div class="flex justify-between">
+                    <span class="font-medium text-gray-800">{{ venda.produto_nome }}</span>
+                    <span class="text-gray-600">x{{ venda.quantidade }}</span>
+                </div>
+            </div>
+
+            <div class="bg-gray-50 p-4 rounded-lg border">
+                <div class="flex justify-between text-xs text-gray-500 mb-1">
+                    <span>Forma de Pagamento:</span>
+                    <span class="uppercase">{{ venda.forma_pagamento }}</span>
+                </div>
+                <div class="flex justify-between text-xl font-black text-gray-900">
+                    <span>TOTAL:</span>
+                    <span>R$ {{ "%.2f"|format(venda.valor_total) }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-6 bg-gray-50 text-center space-y-3 no-print border-t">
+            <p class="text-[10px] text-gray-400 uppercase tracking-widest mb-2">Ações de Envio e Navegação</p>
+            
+            <div class="flex flex-col space-y-2">
+                {% if link_zap %}
+                <a href="{{ link_zap }}" target="_blank" 
+                   class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition flex items-center justify-center shadow-lg uppercase text-xs">
+                    <i class="fab fa-whatsapp mr-2 text-lg"></i> Enviar p/ WhatsApp
+                </a>
+                {% endif %}
+                
+                <a href="{{ url_for('vendas') }}" 
+                   class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition flex items-center justify-center shadow-lg uppercase text-xs">
+                    <i class="fas fa-cart-plus mr-2"></i> Realizar Nova Venda
+                </a>
+
+                <div class="flex justify-between pt-2">
+                    <button onclick="window.print()" class="text-gray-500 font-bold text-[10px] uppercase hover:text-gray-800 transition">
+                        <i class="fas fa-print mr-1"></i> Imprimir
+                    </button>
+                    <a href="{{ url_for('index') }}" class="text-gray-500 font-bold text-[10px] uppercase hover:text-gray-800 transition">
+                        <i class="fas fa-home mr-1"></i> Ir para o Painel
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-4 bg-white text-center">
+            <p class="text-[10px] text-gray-400 uppercase tracking-widest italic">Obrigado pela preferência!</p>
+        </div>
+    </div>
+
+    <style>
+        @media print { .no-print { display: none; } }
+    </style>
+</body>
+</html>

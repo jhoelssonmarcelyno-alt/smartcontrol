@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 DATABASE = 'database/smartcontrol.db'
 
 def conectar_db():
-    # Adicionamos timeout=10 para ele esperar até 10 segundos se o banco estiver ocupado
+    # Timeout para evitar travamentos em acessos simultâneos
     conn = sqlite3.connect(DATABASE, timeout=10) 
     conn.row_factory = sqlite3.Row
     return conn
@@ -14,7 +14,6 @@ def conectar_db():
 def cadastrar_usuario(nome, email, senha):
     conn = conectar_db()
     cursor = conn.cursor()
-    # 7 dias de teste grátis por padrão
     expiracao = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d %H:%M:%S')
     try:
         cursor.execute("""
@@ -39,13 +38,9 @@ def renovar_assinatura(usuario_id, dias):
     cursor = conn.cursor()
     nova_expiracao = (datetime.now() + timedelta(days=dias)).strftime('%Y-%m-%d %H:%M:%S')
     plano_nome = f"Plano {dias} Dias"
-    
     cursor.execute("""
-        UPDATE usuarios 
-        SET data_expiracao = ?, plano = ? 
-        WHERE id = ?
+        UPDATE usuarios SET data_expiracao = ?, plano = ? WHERE id = ?
     """, (nova_expiracao, plano_nome, usuario_id))
-    
     conn.commit()
     conn.close()
 
@@ -81,8 +76,8 @@ def listar_produtos(usuario_id):
 def cadastrar_cliente(nome, telefone, usuario_id):
     conn = conectar_db()
     conn.execute('''
-        INSERT INTO clientes (nome, telefone, usuario_id)
-        VALUES (?, ?, ?)
+        INSERT INTO clientes (nome, telefone, saldo_devedor, permite_fiado, limite_fiado, usuario_id)
+        VALUES (?, ?, 0.0, 1, 0.0, ?)
     ''', (nome, telefone, usuario_id))
     conn.commit()
     conn.close()
@@ -97,52 +92,31 @@ def obter_resumo_financeiro(usuario_id):
     conn = conectar_db()
     resumo = conn.execute('''
         SELECT SUM(valor_total) as faturamento, SUM(lucro) as lucro_total 
-        FROM vendas 
-        WHERE usuario_id = ?
+        FROM vendas WHERE usuario_id = ?
     ''', (usuario_id,)).fetchone()
     conn.close()
     return resumo
 
 def obter_dados_assinante(usuario_id):
     conn = conectar_db()
-    user = conn.execute('''
-        SELECT nome, plano, data_expiracao 
-        FROM usuarios WHERE id = ?
-    ''', (usuario_id,)).fetchone()
+    user = conn.execute('SELECT nome, plano, data_expiracao FROM usuarios WHERE id = ?', (usuario_id,)).fetchone()
     conn.close()
-    
     if user:
         expiracao = datetime.strptime(user['data_expiracao'], '%Y-%m-%d %H:%M:%S')
-        dias_restantes = (expiracao - datetime.now()).days
-        
-        return {
-            'nome': user['nome'],
-            'plano': user['plano'],
-            'dias_restantes': dias_restantes if dias_restantes > 0 else 0
-        }
+        restantes = (expiracao - datetime.now()).days
+        return {'nome': user['nome'], 'plano': user['plano'], 'dias_restantes': max(0, restantes)}
     return None
 
 def listar_vendas(usuario_id):
     conn = conectar_db()
-    cursor = conn.cursor()
-    # O JOIN é fundamental aqui para a tabela mostrar "Coca-Cola" em vez de "ID 5"
-    cursor.execute('''
-        SELECT 
-            v.id, 
-            v.quantidade, 
-            v.valor_total, 
-            v.forma_pagamento, 
-            v.data,
-            p.nome AS produto_nome, 
-            c.nome AS cliente_nome
+    vendas = conn.execute('''
+        SELECT v.*, p.nome AS produto_nome, c.nome AS cliente_nome
         FROM vendas v
         JOIN produtos p ON v.produto_id = p.id
         LEFT JOIN clientes c ON v.cliente_id = c.id
         WHERE v.usuario_id = ?
-        ORDER BY v.data DESC 
-        LIMIT 30
-    ''', (usuario_id,))
-    vendas = cursor.fetchall()
+        ORDER BY v.data DESC LIMIT 30
+    ''', (usuario_id,)).fetchall()
     conn.close()
     return vendas
 
@@ -151,30 +125,98 @@ def registrar_venda(produto_id, cliente_id, quantidade, forma_pagamento, usuario
     try:
         cursor = conn.cursor()
         
-        # 1. Busca os dados (Apenas leitura aqui)
-        cursor.execute("SELECT preco_custo, preco_venda, quantidade FROM produtos WHERE id = ? AND usuario_id = ?", (produto_id, usuario_id))
-        produto = cursor.fetchone()
+        # 1. Busca dados do produto (Preço e Estoque atual)
+        cursor.execute("SELECT preco_custo, preco_venda, quantidade FROM produtos WHERE id = ?", (produto_id,))
+        prod = cursor.fetchone()
         
-        if produto and produto['quantidade'] >= quantidade:
-            valor_total = produto['preco_venda'] * quantidade
-            lucro_operacao = (produto['preco_venda'] - produto['preco_custo']) * quantidade
+        if not prod:
+            raise Exception("Produto não encontrado.")
             
-            # 2. Atualiza estoque
-            cursor.execute("UPDATE produtos SET quantidade = quantidade - ? WHERE id = ?", (quantidade, produto_id))
+        if prod['quantidade'] < quantidade:
+            raise Exception(f"Estoque insuficiente para o produto ID {produto_id}.")
+
+        # 2. Cálculos financeiros
+        v_total = prod['preco_venda'] * quantidade
+        lucro = (prod['preco_venda'] - prod['preco_custo']) * quantidade
+        data_agora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # 3. Se for Fiado, validar e atualizar saldo do cliente
+        if forma_pagamento.lower() == 'fiado' and cliente_id:
+            cursor.execute("SELECT permite_fiado, limite_fiado, saldo_devedor FROM clientes WHERE id = ?", (cliente_id,))
+            cli = cursor.fetchone()
             
-            # 3. Se for fiado, atualiza o cliente
-            if forma_pagamento.lower() == 'fiado' and cliente_id:
-                cursor.execute("UPDATE clientes SET saldo_devedor = saldo_devedor + ? WHERE id = ?", (valor_total, cliente_id))
+            if cli:
+                if not cli['permite_fiado']:
+                    raise Exception("Cliente bloqueado para fiado.")
                 
-            # 4. Registra a venda
-            cursor.execute("""
-                INSERT INTO vendas (produto_id, cliente_id, quantidade, valor_total, lucro, forma_pagamento, usuario_id, data)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (produto_id, cliente_id, quantidade, valor_total, lucro_operacao, forma_pagamento, usuario_id, datetime.now()))
-            
-            conn.commit() # Salva tudo de uma vez
+                if cli['limite_fiado'] > 0 and (cli['saldo_devedor'] + v_total) > cli['limite_fiado']:
+                    raise Exception("Limite de crédito excedido.")
+                
+                # Atualiza o saldo devedor E a data da última compra para o contador de dias
+                cursor.execute("""
+                    UPDATE clientes 
+                    SET saldo_devedor = saldo_devedor + ?, 
+                        data_ultima_compra = ? 
+                    WHERE id = ?
+                """, (v_total, data_agora, cliente_id))
+        
+        # 4. Baixa no estoque
+        cursor.execute("UPDATE produtos SET quantidade = quantidade - ? WHERE id = ?", (quantidade, produto_id))
+        
+        # 5. Insere o registro da venda
+        cursor.execute("""
+            INSERT INTO vendas (produto_id, cliente_id, quantidade, valor_total, lucro, forma_pagamento, usuario_id, data)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (produto_id, cliente_id, quantidade, v_total, lucro, forma_pagamento, usuario_id, data_agora))
+        
+        # Finaliza a transação salvando tudo
+        conn.commit()
+        
     except Exception as e:
-        print(f"Erro ao registrar: {e}")
-        conn.rollback() # Se der erro, desfaz o que foi feito pra não corromper
+        conn.rollback() # Cancela tudo se der erro em qualquer item
+        raise e
     finally:
-        conn.close() # GARANTE que a conexão será fechada, dando erro ou não
+        conn.close()
+
+# --- GESTÃO AVANÇADA DE CLIENTES ---
+
+def registrar_pagamento_cliente(cliente_id, valor_pago):
+    conn = conectar_db()
+    try:
+        conn.execute('UPDATE clientes SET saldo_devedor = MAX(0, saldo_devedor - ?) WHERE id = ?', (valor_pago, cliente_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+def obter_cliente_por_id(cliente_id, usuario_id):
+    conn = conectar_db()
+    cliente = conn.execute('SELECT * FROM clientes WHERE id = ? AND usuario_id = ?', (cliente_id, usuario_id)).fetchone()
+    conn.close()
+    return cliente
+
+def obter_extrato_cliente(cliente_id, usuario_id):
+    conn = conectar_db()
+    # Usamos o strftime do SQLite para formatar a data diretamente na query
+    vendas = conn.execute('''
+        SELECT 
+            strftime('%d/%m/%Y %H:%M', v.data) as data_formatada, 
+            p.nome as produto, 
+            v.quantidade, 
+            v.valor_total, 
+            v.forma_pagamento
+        FROM vendas v
+        JOIN produtos p ON v.produto_id = p.id
+        WHERE v.cliente_id = ? AND v.usuario_id = ?
+        ORDER BY v.data DESC
+    ''', (cliente_id, usuario_id)).fetchall()
+    conn.close()
+    return vendas
+
+def atualizar_configuracao_fiado(cliente_id, permite, limite, usuario_id):
+    conn = conectar_db()
+    conn.execute('''
+        UPDATE clientes SET permite_fiado = ?, limite_fiado = ? 
+        WHERE id = ? AND usuario_id = ?
+    ''', (permite, limite, cliente_id, usuario_id))
+    conn.commit()
+    conn.close()
