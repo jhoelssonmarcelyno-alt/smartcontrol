@@ -165,13 +165,11 @@ def processar_venda_completa(itens_json, cliente_id, forma_pagamento, usuario_id
     finally:
         conn.close()
 
-# --- FINANCEIRO E CONFIGURAÇÕES ---
-
 def obter_resumo_financeiro(usuario_id):
     conn = conectar_db()
-    conn.row_factory = sqlite3.Row  # Permite acessar colunas pelo nome
+    conn.row_factory = sqlite3.Row
     
-    # 1. Busca Faturamento e Lucro (da tabela vendas)
+    # 1. Busca Faturamento e Lucro das vendas realizadas
     res_vendas = conn.execute('''
         SELECT 
             COALESCE(SUM(valor_total), 0) as faturamento, 
@@ -179,22 +177,23 @@ def obter_resumo_financeiro(usuario_id):
         FROM vendas WHERE usuario_id = ?
     ''', (usuario_id,)).fetchone()
     
-    # 2. Busca Valor Total em Estoque (da tabela produtos)
-    # Cálculo: Preço de Custo multiplicado pela Quantidade
+    # 2. Busca Valor de Estoque e Lucro Previsto (Venda - Custo) * Qtd
     res_estoque = conn.execute('''
         SELECT 
-            COALESCE(SUM(preco_custo * quantidade), 0) as valor_estoque
+            COALESCE(SUM(preco_custo * quantidade), 0) as valor_estoque,
+            COALESCE(SUM((preco_venda - preco_custo) * quantidade), 0) as lucro_previsto
         FROM produtos WHERE usuario_id = ?
     ''', (usuario_id,)).fetchone()
     
     conn.close()
 
-    # Retornamos um dicionário unindo os dados das duas tabelas
     return {
         "faturamento": res_vendas['faturamento'],
         "lucro_total": res_vendas['lucro_total'],
-        "valor_estoque": res_estoque['valor_estoque']
+        "valor_estoque": res_estoque['valor_estoque'],
+        "lucro_previsto": res_estoque['lucro_previsto']
     }
+# --- FINANCEIRO E CONFIGURAÇÕES ---
 
 def registrar_pagamento_cliente(cliente_id, valor_pago):
     conn = conectar_db()

@@ -7,14 +7,14 @@
             <h2 class="text-2xl font-black italic tracking-tighter text-white uppercase flex items-center">
                 <i class="fas fa-chart-pie mr-3 text-emerald-500"></i> Resumo Financeiro
             </h2>
-            <p class="text-gray-400 text-sm">Visão geral de faturamento e lucros.</p>
+            <p class="text-gray-400 text-sm">Visão geral de faturamento, lucros e projeções.</p>
         </div>
         <a href="{{ url_for('index') }}" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-xl text-xs uppercase transition">
             <i class="fas fa-arrow-left mr-2"></i> Voltar
         </a>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         
         <div class="bg-[#1e293b] p-8 rounded-3xl border border-gray-700 shadow-2xl relative overflow-hidden group">
             <div class="absolute top-0 right-0 p-4 opacity-10">
@@ -31,16 +31,7 @@
             </div>
             <p class="text-gray-400 font-bold uppercase text-[10px] tracking-widest mb-2">Lucro Líquido</p>
             <h3 class="text-3xl font-black text-emerald-500">R$ {{ "%.2f"|format(resumo.lucro_total or 0) }}</h3>
-            <p class="text-gray-500 text-xs mt-4 italic">Descontando custos de compra</p>
-        </div>
-
-        <div class="bg-[#1e293b] p-8 rounded-3xl border border-gray-700 shadow-2xl relative overflow-hidden group">
-            <div class="absolute top-0 right-0 p-4 opacity-10">
-                <i class="fas fa-boxes text-6xl text-orange-500"></i>
-            </div>
-            <p class="text-gray-400 font-bold uppercase text-[10px] tracking-widest mb-2">Capital em Estoque</p>
-            <h3 class="text-3xl font-black text-orange-500">R$ {{ "%.2f"|format(resumo.valor_estoque or 0) }}</h3>
-            <p class="text-gray-500 text-xs mt-4 italic">Valor investido em produtos</p>
+            <p class="text-gray-500 text-xs mt-4 italic">Dinheiro real ganho em vendas</p>
         </div>
 
         <div class="bg-[#1e293b] p-8 rounded-3xl border border-gray-700 shadow-2xl relative overflow-hidden group">
@@ -50,6 +41,26 @@
             <p class="text-gray-400 font-bold uppercase text-[10px] tracking-widest mb-2">Total em Fiados</p>
             <h3 class="text-3xl font-black text-red-500">R$ {{ "%.2f"|format(total_fiado or 0) }}</h3>
             <p class="text-gray-500 text-xs mt-4 italic">Valores pendentes de clientes</p>
+        </div>
+
+        <div class="bg-[#1e293b] p-8 rounded-3xl border border-gray-700 shadow-2xl relative overflow-hidden group">
+            <div class="absolute top-0 right-0 p-4 opacity-10">
+                <i class="fas fa-boxes text-6xl text-orange-500"></i>
+            </div>
+            <p class="text-gray-400 font-bold uppercase text-[10px] tracking-widest mb-2">Capital em Estoque</p>
+            <h3 class="text-3xl font-black text-orange-500">R$ {{ "%.2f"|format(resumo.valor_estoque or 0) }}</h3>
+            <p class="text-gray-500 text-xs mt-4 italic">Valor investido em mercadoria</p>
+        </div>
+
+        <div class="bg-[#1e293b] p-8 rounded-3xl border border-gray-700 shadow-2xl relative overflow-hidden group border-purple-500/30">
+            <div class="absolute top-0 right-0 p-4 opacity-10">
+                <i class="fas fa-magic text-6xl text-purple-500"></i>
+            </div>
+            <p class="text-gray-400 font-bold uppercase text-[10px] tracking-widest mb-2">Lucro Previsto (Estoque)</p>
+            <h3 class="text-3xl font-black text-purple-500">
+                R$ {{ "%.2f"|format(resumo.lucro_previsto or 0) }}
+            </h3>
+            <p class="text-gray-500 text-xs mt-4 italic">O que você ganhará ao vender tudo</p>
         </div>
 
     </div>

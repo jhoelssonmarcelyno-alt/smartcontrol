@@ -519,9 +519,29 @@ def admin_excluir(id):
 
 @app.route('/financas')
 def financas():
-    if 'usuario_id' not in session: return redirect(url_for('login'))
-    resumo_data = obter_resumo_financeiro(session['usuario_id']) 
-    return render_template('financas.html', resumo=resumo_data)
+    if 'usuario_id' not in session:
+        return redirect(url_for('login'))
+    
+    usuario_id = session['usuario_id']
+    
+    # 1. Busca os dados de faturamento, lucro de vendas, estoque e lucro previsto
+    resumo = obter_resumo_financeiro(usuario_id)
+    
+    # 2. Calcula o total de fiados usando a coluna CORRETA (forma_pagamento)
+    conn = conectar_db()
+    res_fiado = conn.execute(
+        """
+        SELECT COALESCE(SUM(valor_total), 0) 
+        FROM vendas 
+        WHERE usuario_id = ? 
+        AND forma_pagamento = 'Fiado'
+        """,
+        (usuario_id,)
+    ).fetchone()
+    total_fiado = res_fiado[0]
+    conn.close()
+    
+    return render_template('financas.html', resumo=resumo, total_fiado=total_fiado)
 
 @app.route('/temas')
 def temas():
