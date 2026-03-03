@@ -2,56 +2,104 @@
 
 {% block content %}
 <div class="animate-fadeIn">
-    <div class="flex justify-between items-center mb-8">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="mb-6 p-4 rounded-2xl animate-pulse {% if category == 'erro' %}bg-red-500/20 border border-red-500 text-red-500{% else %}bg-emerald-500/20 border border-emerald-500 text-emerald-500{% endif %} font-bold text-sm flex items-center shadow-lg">
+              <i class="fas {% if category == 'erro' %}fa-exclamation-circle{% else %}fa-check-circle{% endif %} mr-3"></i>
+              {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
         <div>
-            <h2 class="text-3xl font-bold text-white uppercase italic">Gerenciar Estoque</h2>
-            <p class="text-gray-400">Adicione novos itens ou visualize seu inventário completo.</p>
+            <h2 class="text-3xl font-black text-white uppercase italic tracking-tighter">Gerenciar <span class="text-emerald-500">Estoque</span></h2>
+            <p class="text-slate-500 text-sm font-bold uppercase tracking-widest">Controle de inventário e precificação</p>
         </div>
-        <a href="#form-cadastro" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-xl transition shadow-lg">
+        <a href="#form-cadastro" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 px-8 rounded-2xl transition transform hover:scale-105 shadow-lg shadow-emerald-900/20 uppercase text-xs tracking-widest">
             <i class="fas fa-plus mr-2"></i> Novo Produto
         </a>
     </div>
 
-    <div id="form-cadastro" class="bg-[#1e293b] p-6 rounded-2xl border border-gray-700 mb-10 shadow-2xl">
-        <h3 class="text-xl font-bold text-white mb-6 flex items-center">
-            <i class="fas fa-edit mr-3 text-blue-500"></i> Cadastrar Produto
+    <div id="form-cadastro" class="glass-card p-8 rounded-3xl mb-12 shadow-xl">
+        <h3 class="text-sm font-black text-white mb-8 uppercase tracking-widest flex items-center">
+            <i class="fas fa-plus-circle mr-3 text-emerald-500 text-lg"></i> Cadastrar Novo Item
         </h3>
-        <form method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <input type="text" name="nome" placeholder="Nome do Produto" class="bg-[#0f172a] border border-gray-600 rounded-lg p-3 text-white outline-none focus:border-blue-500" required>
-            <input type="number" step="0.01" name="preco_custo" placeholder="Preço de Custo (R$)" class="bg-[#0f172a] border border-gray-600 rounded-lg p-3 text-white outline-none focus:border-blue-500" required>
-            <input type="number" step="0.01" name="preco_venda" placeholder="Preço de Venda (R$)" class="bg-[#0f172a] border border-gray-600 rounded-lg p-3 text-white outline-none focus:border-blue-500" required>
-            <input type="number" name="quantidade" placeholder="Qtd Inicial" class="bg-[#0f172a] border border-gray-600 rounded-lg p-3 text-white outline-none focus:border-blue-500" required>
-            <button type="submit" class="md:col-span-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg transition uppercase tracking-widest">
-                Salvar Produto no Sistema
+        <form method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="flex flex-col">
+                <label class="text-[10px] text-slate-400 uppercase font-black mb-2 ml-1">Nome do Item</label>
+                <input type="text" name="nome" placeholder="Ex: Mouse Gamer" 
+                       class="input-pro w-full rounded-xl p-4 text-sm outline-none" required>
+            </div>
+            <div class="flex flex-col">
+                <label class="text-[10px] text-slate-400 uppercase font-black mb-2 ml-1">Custo (R$)</label>
+                <input type="number" step="0.01" name="preco_custo" placeholder="0.00" 
+                       class="input-pro w-full rounded-xl p-4 text-sm outline-none" required>
+            </div>
+            <div class="flex flex-col">
+                <label class="text-[10px] text-slate-400 uppercase font-black mb-2 ml-1">Venda (R$)</label>
+                <input type="number" step="0.01" name="preco_venda" placeholder="0.00" 
+                       class="input-pro w-full rounded-xl p-4 text-sm outline-none" required>
+            </div>
+            <div class="flex flex-col">
+                <label class="text-[10px] text-slate-400 uppercase font-black mb-2 ml-1">Qtd Inicial</label>
+                <input type="number" name="quantidade" placeholder="0" 
+                       class="input-pro w-full rounded-xl p-4 text-sm outline-none" required>
+            </div>
+            <button type="submit" class="md:col-span-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-5 rounded-2xl transition-all uppercase tracking-[0.25em] text-xs mt-2 shadow-lg shadow-emerald-900/40">
+                Finalizar Cadastro no Banco de Dados
             </button>
         </form>
     </div>
 
-    <div class="bg-[#1e293b] rounded-2xl border border-gray-700 shadow-2xl overflow-hidden">
+    <div class="glass-card p-4 rounded-t-3xl border-b-0 flex flex-col md:flex-row justify-between items-center gap-4">
+        <h3 class="text-white font-black uppercase italic text-xs tracking-widest ml-2">Lista de Inventário</h3>
+        <div class="relative w-full md:w-96">
+            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+            <input type="text" id="inputBusca" onkeyup="buscarProduto()" placeholder="BUSCAR PRODUTO NA LISTA..." 
+                   class="input-pro w-full rounded-xl py-3 pl-12 pr-4 text-[11px] font-bold outline-none transition tracking-wider">
+        </div>
+    </div>
+
+    <div class="glass-card rounded-b-3xl overflow-hidden shadow-2xl">
         <div class="overflow-x-auto">
-            <table class="w-full text-left">
-                <thead class="bg-[#0f172a]/50 text-gray-400 text-xs uppercase tracking-widest font-bold">
+            <table class="w-full text-left" id="tabelaProdutos">
+                <thead class="bg-white/5 text-slate-500 text-[10px] uppercase font-black tracking-[0.15em]">
                     <tr>
-                        <th class="p-5">Produto</th>
-                        <th class="p-5">Custo</th>
-                        <th class="p-5">Venda</th>
-                        <th class="p-5">Estoque</th>
-                        <th class="p-5">Lucro Unit.</th>
+                        <th class="p-6">Produto</th>
+                        <th class="p-6">Custo</th>
+                        <th class="p-6">Venda</th>
+                        <th class="p-6">Estoque</th>
+                        <th class="p-6 text-center">Gestão</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-800">
+                <tbody class="text-slate-300">
                     {% for produto in produtos %}
-                    <tr class="hover:bg-gray-800/40 transition">
-                        <td class="p-5 font-semibold text-white">{{ produto.nome }}</td>
-                        <td class="p-5 text-gray-400">R$ {{ "%.2f"|format(produto.preco_custo) }}</td>
-                        <td class="p-5 text-green-400 font-bold">R$ {{ "%.2f"|format(produto.preco_venda) }}</td>
-                        <td class="p-5">
-                            <span class="{% if produto.quantidade < 5 %}text-red-500{% else %}text-blue-400{% endif %} font-bold">
-                                {{ produto.quantidade }} un
+                    <tr class="border-t border-white/5 table-row-hover transition">
+                        <td class="p-6">
+                            <div class="font-black text-white uppercase italic text-sm tracking-tight">{{ produto.nome }}</div>
+                            <div class="text-[9px] text-slate-600 uppercase font-bold">Ref: #{{ produto.id }}</div>
+                        </td>
+                        <td class="p-6 text-xs font-mono text-slate-500">R$ {{ "%.2f"|format(produto.preco_custo) }}</td>
+                        <td class="p-6 font-black text-emerald-500 text-base">R$ {{ "%.2f"|format(produto.preco_venda) }}</td>
+                        <td class="p-6">
+                            <span class="px-4 py-1.5 rounded-full text-[10px] font-black {% if produto.quantidade < 5 %}bg-red-500/10 text-red-500 animate-pulse border border-red-500/20{% else %}bg-slate-700/30 text-slate-300 border border-white/5{% endif %}">
+                                {{ produto.quantidade }} UNIDADES
                             </span>
                         </td>
-                        <td class="p-5 text-emerald-500 font-bold">
-                            R$ {{ "%.2f"|format(produto.preco_venda - produto.preco_custo) }}
+                        <td class="p-6">
+                            <div class="flex items-center justify-center space-x-4">
+                                <button onclick="abrirModalEditar('{{ produto.id }}', '{{ produto.nome }}', '{{ produto.preco_custo }}', '{{ produto.preco_venda }}', '{{ produto.quantidade }}')" 
+                                        class="text-slate-500 hover:text-blue-400 transition transform hover:scale-125">
+                                    <i class="fas fa-edit text-lg"></i>
+                                </button>
+                                <button onclick="confirmarExclusao('{{ produto.id }}', '{{ produto.nome }}')" 
+                                        class="text-slate-500 hover:text-red-500 transition transform hover:scale-125">
+                                    <i class="fas fa-trash-alt text-lg"></i>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -60,4 +108,92 @@
         </div>
     </div>
 </div>
+
+<div id="modalEditar" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+    <div class="glass-card w-full max-w-md rounded-3xl overflow-hidden shadow-2xl">
+        <div class="p-6 border-b border-white/5 flex justify-between items-center bg-white/5">
+            <h3 class="text-white font-black uppercase italic tracking-tighter">Ajustar Produto</h3>
+            <button onclick="fecharModal()" class="text-slate-400 hover:text-white text-2xl transition">&times;</button>
+        </div>
+        <form id="formEditar" method="POST" class="p-8 space-y-6">
+            <div>
+                <label class="text-[10px] text-slate-400 uppercase font-black mb-2 block">Nome do Produto</label>
+                <input type="text" name="nome" id="edit_nome" required class="input-pro w-full rounded-xl p-4 text-sm outline-none">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-[10px] text-slate-400 uppercase font-black mb-2 block">Custo (R$)</label>
+                    <input type="number" step="0.01" name="preco_custo" id="edit_custo" required class="input-pro w-full rounded-xl p-4 text-sm outline-none">
+                </div>
+                <div>
+                    <label class="text-[10px] text-slate-400 uppercase font-black mb-2 block">Venda (R$)</label>
+                    <input type="number" step="0.01" name="preco_venda" id="edit_venda" required class="input-pro w-full rounded-xl p-4 text-sm outline-none">
+                </div>
+            </div>
+            <div>
+                <label class="text-[10px] text-slate-400 uppercase font-black mb-2 block">Estoque Atual</label>
+                <input type="number" name="quantidade" id="edit_qtd" required class="input-pro w-full rounded-xl p-4 text-sm outline-none">
+            </div>
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl transition uppercase tracking-widest text-xs shadow-lg shadow-blue-900/30">
+                Salvar Alterações
+            </button>
+        </form>
+    </div>
+</div>
+
+<div id="modalExcluir" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur-lg z-[110] flex items-center justify-center p-4">
+    <div class="glass-card w-full max-w-sm rounded-3xl p-8 text-center border-red-500/20 shadow-2xl shadow-red-900/10">
+        <div class="w-20 h-20 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-500/20">
+            <i class="fas fa-trash-alt text-3xl"></i>
+        </div>
+        <h3 class="text-white font-black uppercase italic tracking-tighter text-2xl mb-2">Eliminar Item?</h3>
+        <p class="text-slate-500 text-xs mb-8 uppercase tracking-widest leading-loose">Você está removendo: <br><span id="nomeProdutoExcluir" class="text-red-400 font-bold text-sm"></span></p>
+        <div class="flex flex-col space-y-3">
+            <a id="linkConfirmarExcluir" href="#" class="bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-2xl transition uppercase text-[10px] tracking-[0.2em]">Confirmar Exclusão</a>
+            <button onclick="fecharModalExcluir()" class="text-slate-500 hover:text-white font-black py-2 text-[10px] uppercase tracking-widest transition">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function buscarProduto() {
+    let input = document.getElementById("inputBusca");
+    let filter = input.value.toUpperCase();
+    let table = document.getElementById("tabelaProdutos");
+    let tr = table.getElementsByTagName("tr");
+    for (let i = 1; i < tr.length; i++) {
+        let td = tr[i].getElementsByTagName("td")[0];
+        if (td) {
+            let txtValue = td.textContent || td.innerText;
+            tr[i].style.display = txtValue.toUpperCase().indexOf(filter) > -1 ? "" : "none";
+        }
+    }
+}
+
+function abrirModalEditar(id, nome, custo, venda, qtd) {
+    const form = document.getElementById('formEditar');
+    if(form) {
+        form.action = '/editar_produto/' + id;
+        document.getElementById('edit_nome').value = nome;
+        document.getElementById('edit_custo').value = custo;
+        document.getElementById('edit_venda').value = venda;
+        document.getElementById('edit_qtd').value = qtd;
+        document.getElementById('modalEditar').classList.remove('hidden');
+    }
+}
+
+function fecharModal() { document.getElementById('modalEditar').classList.add('hidden'); }
+
+function confirmarExclusao(id, nome) {
+    const spanNome = document.getElementById('nomeProdutoExcluir');
+    const linkExcluir = document.getElementById('linkConfirmarExcluir');
+    if(spanNome && linkExcluir) {
+        spanNome.innerText = nome;
+        linkExcluir.href = '/excluir_produto/' + id;
+        document.getElementById('modalExcluir').classList.remove('hidden');
+    }
+}
+
+function fecharModalExcluir() { document.getElementById('modalExcluir').classList.add('hidden'); }
+</script>
 {% endblock %}

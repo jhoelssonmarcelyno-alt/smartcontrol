@@ -6,62 +6,179 @@
     <title>SmartControl - Gestão Inteligente</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
     <style>
-        .nav-link { @apply flex items-center px-4 py-2 rounded-lg transition-all duration-300; }
-        .active-link { @apply bg-green-600 text-white shadow-lg shadow-green-900/20; }
-        
-        /* Animação suave para troca de páginas */
-        .animate-fadeIn {
-            animation: fadeIn 0.5s ease-in-out;
+        :root {
+            --bg-deep: #0f172a;
+            --card-slate: #1e293b;
+            --border-soft: rgba(255, 255, 255, 0.08);
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+
+        body { 
+            background-color: var(--bg-deep); 
+            background-image: radial-gradient(circle at top right, rgba(59, 130, 246, 0.05), transparent);
+            color: white;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
         }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-soft);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+        }
+
+        /* BARRAS DIGITÁVEIS - FOCO PROFISSIONAL */
+        .input-pro {
+            background-color: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            color: #0f172a !important;
+            font-weight: 600 !important;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .input-pro:focus {
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2) !important;
+            outline: none !important;
+        }
+
+        .animate-fadeIn { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        .animate-zoomIn { animation: zoomIn 0.2s ease-out; }
+        @keyframes zoomIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+
+        /* Estilo para os Toasts */
+        .toast-item {
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-deep); }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
     </style>
 </head>
-<body class="bg-[#0f172a] text-white font-sans min-h-screen">
 
-    <nav class="bg-[#1e293b] border-b border-white/5 shadow-2xl sticky top-0 z-50">
-        <div class="container mx-auto px-6 py-3 flex justify-between items-center">
-            
+<body class="min-h-screen flex flex-col">
+
+    <div id="toast-container" class="fixed top-5 right-5 z-[9999] space-y-4 pointer-events-none">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="toast-item pointer-events-auto transform translate-x-full bg-slate-900 border-l-4 {% if category == 'sucesso' %}border-emerald-500{% else %}border-red-500{% endif %} p-4 rounded-xl shadow-2xl flex items-center min-w-[320px]">
+                        <div class="mr-3">
+                            {% if category == 'sucesso' %}
+                                <i class="fas fa-check-circle text-emerald-500 text-xl"></i>
+                            {% else %}
+                                <i class="fas fa-exclamation-circle text-red-500 text-xl"></i>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <p class="text-white text-[10px] font-black uppercase tracking-widest opacity-70">{{ category }}</p>
+                            <p class="text-white text-xs font-medium">{{ message }}</p>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <nav class="glass-card border-b border-white/5 sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
             <div class="flex items-center space-x-3 cursor-pointer" onclick="window.location.href='/'">
-                <div class="relative w-10 h-10 overflow-hidden rounded-lg shadow-lg shadow-green-500/20">
+                <div class="relative w-10 h-10 overflow-hidden rounded-xl shadow-lg border border-white/10">
                     {% if session.get('usuario_logo') %}
-                        <img src="{{ url_for('static', filename='uploads/' + session['usuario_logo']) }}" 
-                             class="w-full h-full object-cover">
+                        <img src="{{ url_for('static', filename='uploads/' + session['usuario_logo']) }}" class="w-full h-full object-cover">
                     {% else %}
-                        <div class="bg-green-500 w-full h-full flex items-center justify-center">
-                            <i class="fas fa-rocket text-[#1e293b]"></i>
+                        <div class="bg-blue-600 w-full h-full flex items-center justify-center">
+                            <i class="fas fa-rocket text-white"></i>
                         </div>
                     {% endif %}
                 </div>
                 <h1 class="text-xl font-black tracking-tighter uppercase italic text-white">
-                    {{ session.get('nome', 'Smart') }}<span class="text-green-500">Control</span>
+                    {{ session.get('nome', 'Smart') }}<span class="text-blue-500">Control</span>
                 </h1>
             </div>
             
             <div class="flex items-center space-x-6">
-                <a href="/configuracoes" class="text-gray-400 hover:text-white transition group" title="Configurações">
-                    <i class="fas fa-cog group-hover:rotate-90 transition duration-500"></i>
+                <a href="/configuracoes" class="text-slate-400 hover:text-white transition group" title="Configurações">
+                    <i class="fas fa-cog group-hover:rotate-90 transition duration-500 text-lg"></i>
                 </a>
-
                 <div class="border-l border-white/10 h-6"></div>
-
-                <a href="/logout" class="text-gray-400 hover:text-red-500 transition-colors flex items-center font-bold text-xs uppercase tracking-widest">
+                <a href="/logout" class="text-slate-400 hover:text-red-400 transition-colors flex items-center font-bold text-[10px] uppercase tracking-widest">
                     <i class="fas fa-power-off mr-2"></i> Sair
                 </a>
             </div>
         </div>
     </nav>
 
-    <main class="container mx-auto p-6 min-h-[calc(100vh-200px)]">
+    <main class="container mx-auto p-6 flex-grow">
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="text-center py-10 text-gray-600 text-xs uppercase tracking-widest border-t border-white/5 mt-10">
-        &copy; 2026 SmartControl System - Todos os direitos reservados
+    <div id="modal-detalhes" class="hidden fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+        <div class="glass-card w-full max-w-2xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden animate-zoomIn">
+            <div class="p-6 border-b border-white/5 bg-white/5 flex justify-between items-center">
+                <h3 class="text-white font-black uppercase italic text-xs tracking-widest">
+                    <i class="fas fa-receipt mr-2 text-blue-500"></i> Detalhes da Venda
+                </h3>
+                <button onclick="fecharDetalhes()" class="text-slate-400 hover:text-white transition"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="p-8 space-y-6">
+                <div class="grid grid-cols-3 gap-4 text-[10px] uppercase font-black tracking-widest text-slate-500">
+                    <div><p class="mb-1">Data/Hora</p><p id="detalhe-data" class="text-white text-xs"></p></div>
+                    <div><p class="mb-1">Cliente</p><p id="detalhe-cliente" class="text-white text-xs font-bold"></p></div>
+                    <div><p class="mb-1">Pagamento</p><p id="detalhe-pagamento" class="text-white text-xs"></p></div>
+                </div>
+                <div class="bg-black/20 rounded-2xl p-4 border border-white/5">
+                    <table class="w-full text-left text-xs">
+                        <thead>
+                            <tr class="text-slate-500 uppercase font-black border-b border-white/5">
+                                <th class="pb-2">Produto</th>
+                                <th class="pb-2 text-center">Qtd</th>
+                                <th class="pb-2 text-right">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detalhe-itens-corpo" class="text-slate-300"></tbody>
+                    </table>
+                </div>
+                <div class="flex justify-end pt-4 border-t border-white/5">
+                    <div class="text-right">
+                        <p class="text-[10px] text-slate-500 uppercase font-black">Total da Transação</p>
+                        <p id="detalhe-total" class="text-4xl font-black text-emerald-500 tracking-tighter italic"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="text-center py-10 text-slate-500 text-[10px] uppercase tracking-[0.2em] border-t border-white/5 mt-10">
+        &copy; 2026 SmartControl System - <span class="text-blue-500/50 font-bold">Gestão Inteligente</span>
     </footer>
 
+    <script>
+        // Lógica dos Toasts
+        document.querySelectorAll('.toast-item').forEach(toast => {
+            // Entrada
+            setTimeout(() => { toast.classList.remove('translate-x-full'); }, 100);
+            // Saída automática
+            setTimeout(() => {
+                toast.classList.add('opacity-0', '-translate-y-4');
+                setTimeout(() => { toast.remove(); }, 500);
+            }, 4500);
+        });
+
+        // Lógica do Modal
+        function fecharDetalhes() {
+            document.getElementById('modal-detalhes').classList.add('hidden');
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('modal-detalhes');
+            if (event.target == modal) fecharDetalhes();
+        }
+    </script>
 </body>
 </html>

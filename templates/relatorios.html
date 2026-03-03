@@ -42,20 +42,24 @@
                 </thead>
                 <tbody class="text-gray-300">
                     {% for venda in vendas %}
-                    <tr class="border-t border-gray-700/50 hover:bg-white/5 transition">
-                        <td class="p-5 text-sm text-gray-400">{{ venda.data_formatada }}</td>
-                        <td class="p-5 font-bold text-white uppercase italic text-sm">{{ venda.produto_nome }}</td>
-                        <td class="p-5 text-center font-mono bg-white/5">{{ venda.quantidade }}</td>
-                        <td class="p-5 text-sm">R$ {{ "%.2f"|format(venda.preco_venda) }}</td>
-                        <td class="p-5 text-emerald-400 font-black">R$ {{ "%.2f"|format(venda.quantidade * venda.preco_venda) }}</td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="5" class="p-10 text-center text-gray-500 italic">
-                            Nenhuma venda registrada neste período.
-                        </td>
-                    </tr>
-                    {% endfor %}
+<tr class="border-t border-gray-700/50 hover:bg-white/5 transition">
+    <td class="p-5 text-sm text-gray-400">
+        {{ venda.ultima_venda_formatada if venda.ultima_venda_formatada else periodo }}
+    </td>
+    <td class="p-5 font-bold text-white uppercase italic text-sm">{{ venda.produto_nome }}</td>
+    <td class="p-5 text-center font-mono bg-white/5 text-blue-400 font-bold">
+        {{ venda.quantidade_total }}
+    </td>
+    <td class="p-5 text-sm text-gray-400">R$ {{ "%.2f"|format(venda.preco_venda) }}</td>
+    <td class="p-5 text-emerald-400 font-black">
+        R$ {{ "%.2f"|format(venda.faturamento_total) }}
+    </td>
+</tr>
+{% else %}
+<tr>
+    <td colspan="5" class="p-10 text-center text-gray-500 italic">Nenhuma venda encontrada neste período.</td>
+</tr>
+{% endfor %}
                 </tbody>
             </table>
         </div>

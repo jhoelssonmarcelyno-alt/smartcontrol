@@ -1,184 +1,396 @@
-{% extends 'layout.html' %}
+{% extends 'layout.html' %} {% block content %}
+<div class="animate-fadeIn space-y-8">
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div
+      class="lg:col-span-1 glass-card p-8 rounded-3xl shadow-xl border-white/5"
+    >
+      <h3
+        class="text-sm font-black text-white mb-8 uppercase tracking-[0.2em] flex items-center"
+      >
+        <i class="fas fa-search mr-3 text-blue-500"></i> Buscar Produto
+      </h3>
 
-{% block content %}
-<div class="animate-fadeIn grid grid-cols-1 lg:grid-cols-3 gap-8">
-    
-    <div class="lg:col-span-1 bg-[#1e293b] p-6 rounded-2xl border border-gray-700 shadow-2xl">
-        <h3 class="text-xl font-bold text-white mb-6 flex items-center">
-            <i class="fas fa-cart-plus mr-3 text-yellow-500"></i> Adicionar Itens
-        </h3>
-        
-        <div class="space-y-4">
-            <div>
-                <label class="text-gray-400 text-xs uppercase font-bold">Produto</label>
-                <select id="select-produto" class="w-full bg-[#0f172a] border border-gray-600 rounded-lg p-3 text-white outline-none focus:border-yellow-500">
-                    <option value="">Selecione...</option>
-                    {% for produto in produtos %}
-                    <option value="{{ produto.id }}" data-preco="{{ produto.preco_venda }}" data-nome="{{ produto.nome }}">
-                        {{ produto.nome }} (R$ {{ "%.2f"|format(produto.preco_venda) }})
-                    </option>
-                    {% endfor %}
-                </select>
+      <div class="space-y-6">
+        <div class="relative">
+          <label
+            class="text-[10px] text-slate-400 uppercase font-black mb-2 ml-1 block"
+            >Produto</label
+          >
+          <input
+            type="text"
+            id="input-busca-produto"
+            onkeyup="buscarProduto(this.value)"
+            placeholder="Digite o nome do produto..."
+            class="input-pro w-full rounded-xl p-4 text-sm outline-none bg-white/5 border border-white/10 focus:ring-2 focus:ring-blue-500"
+          />
+
+          <div
+            id="lista-busca-produto"
+            class="hidden absolute z-50 w-full mt-1 bg-slate-900 border border-white/10 rounded-xl shadow-2xl max-h-60 overflow-y-auto"
+          >
+            {% for produto in produtos %}
+            <div
+              class="item-produto p-4 hover:bg-blue-600 cursor-pointer border-b border-white/5 transition-colors"
+              onclick="selecionarProduto('{{ produto.id }}', '{{ produto.nome }}', '{{ produto.preco_venda }}')"
+            >
+              <p class="text-white text-xs font-bold uppercase">
+                {{ produto.nome }}
+              </p>
+              <p class="text-blue-400 text-[10px]">
+                R$ {{ "%.2f"|format(produto.preco_venda) }}
+              </p>
             </div>
-
-            <div>
-                <label class="text-gray-400 text-xs uppercase font-bold">Quantidade</label>
-                <input type="number" id="input-qtd" value="1" min="1" class="w-full bg-[#0f172a] border border-gray-600 rounded-lg p-3 text-white outline-none focus:border-yellow-500">
-            </div>
-
-            <button onclick="adicionarAoCarrinho()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition uppercase">
-                Inserir no Carrinho
-            </button>
+            {% endfor %}
+          </div>
+          <input type="hidden" id="produto-selecionado-id" />
         </div>
+
+        <div>
+          <label
+            class="text-[10px] text-slate-400 uppercase font-black mb-2 ml-1 block"
+            >Quantidade</label
+          >
+          <input
+            type="number"
+            id="input-qtd"
+            value="1"
+            min="1"
+            class="input-pro w-full rounded-xl p-4 text-sm outline-none"
+          />
+        </div>
+
+        <button
+          type="button"
+          onclick="adicionarAoCarrinho()"
+          class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl transition-all uppercase tracking-widest text-xs"
+        >
+          Adicionar ao Carrinho
+        </button>
+      </div>
     </div>
 
-    <div class="lg:col-span-2 bg-[#1e293b] rounded-2xl border border-gray-700 shadow-2xl flex flex-col">
-        <div class="p-6 border-b border-gray-700 flex justify-between items-center">
-            <h3 class="text-xl font-bold text-white uppercase italic">Itens da Venda</h3>
-            <span id="total-venda" class="text-2xl font-black text-emerald-500">R$ 0.00</span>
-        </div>
-
-        <div class="flex-grow overflow-auto max-h-[400px]">
-            <table class="w-full text-left">
-                <thead class="bg-[#0f172a]/50 text-gray-400 text-xs uppercase font-bold">
-                    <tr>
-                        <th class="p-4">Produto</th>
-                        <th class="p-4 text-center">Qtd</th>
-                        <th class="p-4 text-right">Subtotal</th>
-                        <th class="p-4 text-center">Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="lista-carrinho" class="divide-y divide-gray-800">
-                </tbody>
-            </table>
-        </div>
-
-        <form id="form-venda" action="/vendas" method="POST" class="p-6 bg-[#0f172a]/30 border-t border-gray-700">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <select name="cliente_id" class="bg-[#0f172a] border border-gray-600 rounded-lg p-3 text-white outline-none focus:border-yellow-500">
-                    <option value="">Venda Avulsa (Sem Cliente)</option>
-                    {% for cliente in clientes %}
-                    <option value="{{ cliente.id }}">{{ cliente.nome }}</option>
-                    {% endfor %}
-                </select>
-                <select name="forma_pagamento" class="bg-[#0f172a] border border-gray-600 rounded-lg p-3 text-white outline-none focus:border-yellow-500">
-                    <option value="Dinheiro">Dinheiro</option>
-                    <option value="Pix">Pix</option>
-                    <option value="Cartão">Cartão</option>
-                    <option value="Fiado">Fiado</option>
-                </select>
-            </div>
-            
-            <input type="hidden" name="itens_json" id="itens_json">
-            
-            <button type="submit" onclick="prepararEnvio(event)" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-xl transition text-xl shadow-lg shadow-emerald-900/20">
-                FINALIZAR VENDA COMPLETA
-            </button>
-        </form>
-    </div>
-</div>
-
-<div class="mt-10 bg-[#1e293b] rounded-2xl border border-gray-700 shadow-2xl overflow-hidden">
-    <div class="p-6 border-b border-gray-700 bg-[#0f172a]/20">
-        <h3 class="text-xl font-bold text-white uppercase italic tracking-wider flex items-center">
-            <i class="fas fa-history mr-3 text-blue-400"></i> Histórico de Vendas Recentes
+    <div
+      class="lg:col-span-2 glass-card rounded-3xl border-white/5 shadow-2xl flex flex-col overflow-hidden"
+    >
+      <div
+        class="p-6 border-b border-white/5 bg-white/5 flex justify-between items-center"
+      >
+        <h3
+          class="text-white font-black uppercase italic text-xs tracking-widest"
+        >
+          Itens no Carrinho
         </h3>
+        <span id="total-venda" class="text-2xl font-black text-emerald-500"
+          >R$ 0.00</span
+        >
+      </div>
+
+      <div class="flex-grow overflow-auto max-h-[250px]">
+        <table class="w-full text-left">
+          <tbody
+            id="lista-carrinho"
+            class="divide-y divide-white/5 text-slate-300"
+          ></tbody>
+        </table>
+      </div>
+
+      <form
+        id="form-venda"
+        action="/vendas"
+        method="POST"
+        class="p-8 bg-white/5 border-t border-white/5"
+      >
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div class="relative">
+            <label
+              class="text-[10px] text-slate-400 uppercase font-black mb-2 ml-1 block"
+              >Cliente</label
+            >
+            <input
+              type="text"
+              id="input-busca-cliente"
+              onkeyup="buscarCliente(this.value)"
+              placeholder="Nome do cliente (opcional)..."
+              class="input-pro w-full rounded-xl p-4 text-xs outline-none bg-white/5 border border-white/10"
+            />
+
+            <div
+              id="lista-busca-cliente"
+              class="hidden absolute z-50 w-full mt-1 bg-slate-900 border border-white/10 rounded-xl shadow-2xl max-h-40 overflow-y-auto"
+            >
+              <div
+                class="p-3 hover:bg-emerald-600 cursor-pointer text-white text-[10px] uppercase font-bold"
+                onclick="selecionarCliente('', 'Venda Avulsa')"
+              >
+                VENDA AVULSA
+              </div>
+              {% for cliente in clientes %}
+              <div
+                class="item-cliente p-3 hover:bg-emerald-600 cursor-pointer border-b border-white/5 text-white text-[10px] uppercase font-bold"
+                onclick="selecionarCliente('{{ cliente.id }}', '{{ cliente.nome }}')"
+              >
+                {{ cliente.nome }}
+              </div>
+              {% endfor %}
+            </div>
+            <input
+              type="hidden"
+              name="cliente_id"
+              id="cliente-selecionado-id"
+            />
+          </div>
+
+          <div>
+            <label
+              class="text-[10px] text-slate-400 uppercase font-black mb-2 ml-1 block"
+              >Pagamento</label
+            >
+            <select
+              name="forma_pagamento"
+              class="input-pro w-full rounded-xl p-4 text-xs outline-none cursor-pointer"
+            >
+              <option value="Dinheiro">Dinheiro</option>
+              <option value="Pix">Pix</option>
+              <option value="Cartão">Cartão</option>
+              <option value="Fiado">Fiado</option>
+            </select>
+          </div>
+        </div>
+
+        <input type="hidden" name="itens_json" id="itens_json" />
+        <button
+          type="submit"
+          onclick="return prepararEnvio(event);"
+          class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-5 rounded-2xl transition-all text-sm uppercase tracking-widest shadow-lg shadow-emerald-900/40"
+        >
+          Finalizar Venda
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div
+    class="glass-card rounded-3xl border-white/5 shadow-2xl overflow-hidden mt-10"
+  >
+    <div
+      class="p-6 border-b border-white/5 bg-white/5 flex justify-between items-center"
+    >
+      <h3
+        class="text-white font-black uppercase italic text-xs tracking-widest"
+      >
+        Histórico
+      </h3>
+      <input
+        type="text"
+        onkeyup="filtrarTabela(this.value)"
+        placeholder="Filtrar histórico..."
+        class="bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-[10px] text-white outline-none"
+      />
     </div>
     <div class="overflow-x-auto">
-        <table class="w-full text-left">
-            <thead class="bg-[#0f172a]/50 text-gray-400 text-xs uppercase font-bold">
-                <tr>
-                    <th class="p-4">Data/Hora</th>
-                    <th class="p-4">Produto</th>
-                    <th class="p-4">Cliente</th>
-                    <th class="p-4 text-center">Qtd</th>
-                    <th class="p-4 text-right">Total</th>
-                    <th class="p-4 text-center">Pagamento</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-800">
-                {% for venda in vendas %}
-                <tr class="hover:bg-gray-800/40 transition">
-                    <td class="p-4 text-gray-500 text-xs">{{ venda.data }}</td>
-                    <td class="p-4 font-bold text-white">{{ venda.produto_nome }}</td>
-                    <td class="p-4 text-gray-400 text-sm">{{ venda.cliente_nome or 'Venda Avulsa' }}</td>
-                    <td class="p-4 text-center text-gray-300">{{ venda.quantidade }}</td>
-                    <td class="p-4 text-right text-emerald-400 font-bold">R$ {{ "%.2f"|format(venda.valor_total) }}</td>
-                    <td class="p-4 text-center">
-                        <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-gray-700 text-gray-300 border border-gray-600">
-                            {{ venda.forma_pagamento }}
-                        </span>
-                    </td>
-                    <td class="p-3">
-    <a href="{{ url_for('comprovante_venda', id=venda.id) }}" target="_blank" class="text-gray-400 hover:text-blue-500">
-        <i class="fas fa-print"></i>
-    </a>
-</td>
-                </tr>
-                {% endfor %}
-                {% if not vendas %}
-                <tr>
-                    <td colspan="6" class="p-10 text-center text-gray-500 italic">Nenhuma venda registrada hoje.</td>
-                </tr>
-                {% endif %}
-            </tbody>
-        </table>
+      <table id="tabela-vendas" class="w-full text-left">
+        <tbody class="text-slate-300 divide-y divide-white/5">
+          {% for data, grupo in vendas|groupby('data_formatada') %}
+          <tr class="hover:bg-white/5 transition">
+            <td class="p-5 text-[10px] text-slate-500 italic">{{ data }}</td>
+            <td class="p-5 text-slate-400 text-xs font-bold">
+              {{ grupo[0].cliente_nome or 'Venda Avulsa' }}
+            </td>
+            <td class="p-5 text-right text-emerald-500 font-black text-base">
+              R$ {{ "%.2f"|format(grupo|sum(attribute='valor_total')) }}
+            </td>
+            <td
+              class="p-5 text-center flex items-center justify-center space-x-2"
+            >
+              <button
+                onclick="abrirDetalhes('{{ data }}', '{{ grupo[0].cliente_nome or 'Venda Avulsa' }}', '{{ grupo[0].forma_pagamento }}')"
+                class="text-slate-400 hover:text-emerald-500 p-2"
+              >
+                <i class="fas fa-eye"></i>
+              </button>
+              <a
+                href="{{ url_for('comprovante_venda', id=grupo[0].id) }}"
+                target="_blank"
+                class="text-slate-500 hover:text-blue-500 p-2"
+                ><i class="fas fa-print"></i
+              ></a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
+  </div>
+</div>
+
+<div
+  id="modal-detalhes"
+  class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
+>
+  <div
+    class="glass-card w-full max-w-lg rounded-3xl border-white/10 shadow-2xl overflow-hidden animate-zoomIn"
+  >
+    <div
+      class="p-6 border-b border-white/5 bg-white/5 flex justify-between items-center"
+    >
+      <h3
+        class="text-white font-black uppercase italic text-xs tracking-widest"
+      >
+        Detalhes da Venda
+      </h3>
+      <button
+        onclick="fecharModal()"
+        class="text-slate-400 hover:text-white transition"
+      >
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="p-8 space-y-6">
+      <div
+        class="flex justify-between text-[10px] uppercase font-black tracking-widest"
+      >
+        <span class="text-slate-500">Cliente:</span>
+        <span id="detalhe-cliente" class="text-white text-right"></span>
+      </div>
+      <div
+        class="flex justify-between text-[10px] uppercase font-black tracking-widest"
+      >
+        <span class="text-slate-500">Data/Hora:</span>
+        <span id="detalhe-data" class="text-white"></span>
+      </div>
+      <div
+        class="flex justify-between text-[10px] uppercase font-black tracking-widest border-b border-white/5 pb-4"
+      >
+        <span class="text-slate-500">Pagamento:</span>
+        <span id="detalhe-pagamento" class="text-emerald-500"></span>
+      </div>
+      <div
+        id="detalhe-itens"
+        class="space-y-3 max-h-40 overflow-y-auto pr-2"
+      ></div>
+    </div>
+    <div class="p-6 bg-white/5 border-t border-white/5 flex justify-end">
+      <button
+        onclick="fecharModal()"
+        class="bg-white/10 hover:bg-white/20 text-white text-[10px] font-black py-3 px-8 rounded-xl transition-all uppercase tracking-widest"
+      >
+        Fechar
+      </button>
+    </div>
+  </div>
 </div>
 
 <script>
-    let carrinho = [];
+  let carrinho = [];
 
-    function adicionarAoCarrinho() {
-        const select = document.getElementById('select-produto');
-        const qtdInput = document.getElementById('input-qtd');
-        const produtoId = select.value;
-        const nome = select.options[select.selectedIndex].getAttribute('data-nome');
-        const preco = parseFloat(select.options[select.selectedIndex].getAttribute('data-preco'));
-        const qtd = parseInt(qtdInput.value);
-
-        if (!produtoId || qtd <= 0) return alert("Selecione um produto e quantidade!");
-
-        const subtotal = preco * qtd;
-        carrinho.push({ id: produtoId, nome: nome, preco: preco, qtd: qtd, subtotal: subtotal });
-        
-        atualizarTabela();
+  // BUSCA PRODUTO
+  function buscarProduto(valor) {
+    const lista = document.getElementById("lista-busca-produto");
+    const itens = lista.getElementsByClassName("item-produto");
+    if (valor.length > 0) {
+      lista.classList.remove("hidden");
+      for (let it of itens) {
+        it.style.display = it.innerText.toUpperCase().includes(valor.toUpperCase()) ? "" : "none";
+      }
+    } else {
+      lista.classList.add("hidden");
     }
+  }
 
-    function removerItem(index) {
-        carrinho.splice(index, 1);
-        atualizarTabela();
+  function selecionarProduto(id, nome, preco) {
+    document.getElementById("input-busca-produto").value = nome;
+    document.getElementById("produto-selecionado-id").value = id;
+    document.getElementById("input-busca-produto").setAttribute("data-preco", preco);
+    document.getElementById("lista-busca-produto").classList.add("hidden");
+  }
+
+  // BUSCA CLIENTE
+  function buscarCliente(valor) {
+    const lista = document.getElementById("lista-busca-cliente");
+    const itens = lista.getElementsByClassName("item-cliente");
+    if (valor.length > 0) {
+      lista.classList.remove("hidden");
+      for (let it of itens) {
+        it.style.display = it.innerText.toUpperCase().includes(valor.toUpperCase()) ? "" : "none";
+      }
+    } else {
+      lista.classList.add("hidden");
     }
+  }
 
-    function atualizarTabela() {
-        const tbody = document.getElementById('lista-carrinho');
-        const totalExibicao = document.getElementById('total-venda');
-        tbody.innerHTML = '';
-        let total = 0;
+  function selecionarCliente(id, nome) {
+    document.getElementById("input-busca-cliente").value = nome;
+    document.getElementById("cliente-selecionado-id").value = id;
+    document.getElementById("lista-busca-cliente").classList.add("hidden");
+  }
 
-        carrinho.forEach((item, index) => {
-            total += item.subtotal;
-            tbody.innerHTML += `
-                <tr class="text-white">
-                    <td class="p-4 font-bold">${item.nome}</td>
-                    <td class="p-4 text-center">${item.qtd}</td>
-                    <td class="p-4 text-right text-emerald-400">R$ ${item.subtotal.toFixed(2)}</td>
-                    <td class="p-4 text-center">
-                        <button onclick="removerItem(${index})" class="text-red-500 hover:text-red-400"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-            `;
-        });
+  function adicionarAoCarrinho() {
+    const id = document.getElementById("produto-selecionado-id").value;
+    const nome = document.getElementById("input-busca-produto").value;
+    const preco = parseFloat(document.getElementById("input-busca-produto").getAttribute("data-preco"));
+    const qtd = parseInt(document.getElementById("input-qtd").value);
+    if (!id || isNaN(preco)) return alert("Selecione um produto da lista!");
+    carrinho.push({ id, nome, preco, qtd, subtotal: preco * qtd });
+    document.getElementById("input-busca-produto").value = "";
+    document.getElementById("produto-selecionado-id").value = "";
+    document.getElementById("input-qtd").value = "1";
+    atualizarTabela();
+  }
 
-        totalExibicao.innerText = `R$ ${total.toFixed(2)}`;
-    }
+  function atualizarTabela() {
+    const tbody = document.getElementById("lista-carrinho");
+    let total = 0;
+    tbody.innerHTML = "";
+    carrinho.forEach((item) => {
+      total += item.subtotal;
+      tbody.innerHTML += `<tr class="border-b border-white/5"><td class="p-4 text-xs font-bold text-white uppercase">${item.nome} (x${item.qtd})</td><td class="p-4 text-right text-emerald-400 font-bold">R$ ${item.subtotal.toFixed(2)}</td></tr>`;
+    });
+    document.getElementById("total-venda").innerText = `R$ ${total.toFixed(2)}`;
+    document.getElementById("itens_json").value = JSON.stringify(carrinho);
+  }
 
-    function prepararEnvio(event) {
-        if (carrinho.length === 0) {
-            event.preventDefault();
-            return alert("O carrinho está vazio!");
-        }
-        document.getElementById('itens_json').value = JSON.stringify(carrinho);
-    }
+  function filtrarTabela(valor) {
+    const linhas = document.querySelectorAll("#tabela-vendas tbody tr");
+    linhas.forEach((row) => {
+      row.style.display = row.innerText.toUpperCase().includes(valor.toUpperCase()) ? "" : "none";
+    });
+  }
+
+  function prepararEnvio() {
+    if (carrinho.length === 0) { alert("Adicione itens!"); return false; }
+    return true;
+  }
+
+  // FUNÇÕES DO MODAL
+  function abrirDetalhes(data, cliente, pagamento) {
+    document.getElementById('detalhe-data').innerText = data;
+    document.getElementById('detalhe-cliente').innerText = cliente;
+    document.getElementById('detalhe-pagamento').innerText = pagamento;
+    const containerItens = document.getElementById('detalhe-itens');
+    containerItens.innerHTML = '';
+    document.getElementById('modal-detalhes').classList.remove('hidden');
+
+    const todasVendas = {{ vendas|tojson }};
+    const itensFiltrados = todasVendas.filter(v => v.data_formatada === data);
+
+    itensFiltrados.forEach(item => {
+        containerItens.innerHTML += `
+            <div class="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
+                <div>
+                    <p class="text-white text-[10px] font-bold uppercase">${item.produto_nome}</p>
+                    <p class="text-slate-500 text-[9px]">Qtd: ${item.quantidade}</p>
+                </div>
+                <span class="text-emerald-400 font-bold text-xs">R$ ${item.valor_total.toFixed(2)}</span>
+            </div>`;
+    });
+  }
+
+  function fecharModal() {
+    document.getElementById('modal-detalhes').classList.add('hidden');
+  }
+
+  window.onclick = function(event) {
+    if (event.target == document.getElementById('modal-detalhes')) fecharModal();
+  }
 </script>
 {% endblock %}

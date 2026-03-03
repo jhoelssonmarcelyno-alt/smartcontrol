@@ -1,0 +1,57 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="animate-fadeIn">
+    <div class="mb-8 flex justify-between items-center">
+        <div>
+            <h2 class="text-2xl font-black italic tracking-tighter text-white uppercase flex items-center">
+                <i class="fas fa-chart-pie mr-3 text-emerald-500"></i> Resumo Financeiro
+            </h2>
+            <p class="text-gray-400 text-sm">Visão geral de faturamento e lucros.</p>
+        </div>
+        <a href="{{ url_for('index') }}" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-xl text-xs uppercase transition">
+            <i class="fas fa-arrow-left mr-2"></i> Voltar
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        
+        <div class="bg-[#1e293b] p-8 rounded-3xl border border-gray-700 shadow-2xl relative overflow-hidden group">
+            <div class="absolute top-0 right-0 p-4 opacity-10">
+                <i class="fas fa-dollar-sign text-6xl text-blue-500"></i>
+            </div>
+            <p class="text-gray-400 font-bold uppercase text-[10px] tracking-widest mb-2">Faturamento Total</p>
+            <h3 class="text-3xl font-black text-blue-500">R$ {{ "%.2f"|format(resumo.faturamento or 0) }}</h3>
+            <p class="text-gray-500 text-xs mt-4 italic">Total bruto acumulado</p>
+        </div>
+
+        <div class="bg-[#1e293b] p-8 rounded-3xl border border-gray-700 shadow-2xl relative overflow-hidden group">
+            <div class="absolute top-0 right-0 p-4 opacity-10">
+                <i class="fas fa-hand-holding-usd text-6xl text-emerald-500"></i>
+            </div>
+            <p class="text-gray-400 font-bold uppercase text-[10px] tracking-widest mb-2">Lucro Líquido</p>
+            <h3 class="text-3xl font-black text-emerald-500">R$ {{ "%.2f"|format(resumo.lucro_total or 0) }}</h3>
+            <p class="text-gray-500 text-xs mt-4 italic">Descontando custos de compra</p>
+        </div>
+
+        <div class="bg-[#1e293b] p-8 rounded-3xl border border-gray-700 shadow-2xl relative overflow-hidden group">
+            <div class="absolute top-0 right-0 p-4 opacity-10">
+                <i class="fas fa-boxes text-6xl text-orange-500"></i>
+            </div>
+            <p class="text-gray-400 font-bold uppercase text-[10px] tracking-widest mb-2">Valor em Estoque</p>
+            <h3 class="text-3xl font-black text-orange-500">{{ total_estoque or 0 }} <span class="text-sm">un</span></h3>
+            <p class="text-gray-500 text-xs mt-4 italic">Produtos disponíveis</p>
+        </div>
+
+        <div class="bg-[#1e293b] p-8 rounded-3xl border border-gray-700 shadow-2xl relative overflow-hidden group">
+            <div class="absolute top-0 right-0 p-4 opacity-10">
+                <i class="fas fa-receipt text-6xl text-red-500"></i>
+            </div>
+            <p class="text-gray-400 font-bold uppercase text-[10px] tracking-widest mb-2">Total em Fiados</p>
+            <h3 class="text-3xl font-black text-red-500">R$ {{ "%.2f"|format(total_fiados or 0) }}</h3>
+            <p class="text-gray-500 text-xs mt-4 italic">Valores pendentes</p>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

@@ -4,16 +4,18 @@ import json
 import os
 import urllib.parse
 from werkzeug.utils import secure_filename
+import sqlite3 
 
 # Importando TODAS as funções do models
 from models import (
     listar_produtos, listar_clientes, cadastrar_produto, 
-    cadastrar_cliente, registrar_venda, conectar_db, 
+    cadastrar_cliente, conectar_db, 
     cadastrar_usuario, listar_todos_assinantes, 
     renovar_assinatura, excluir_usuario,
     obter_dados_assinante, obter_resumo_financeiro, 
     listar_vendas, registrar_pagamento_cliente,
-    obter_cliente_por_id, obter_extrato_cliente, atualizar_configuracao_fiado
+    obter_cliente_por_id, obter_extrato_cliente, atualizar_configuracao_fiado,
+    processar_venda_completa, criar_tabelas
 )
 
 app = Flask(__name__)
@@ -34,33 +36,77 @@ def allowed_file(filename):
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        email = request.form['email']
-        senha = request.form['senha']
+        email_digitado = request.form.get('email').lower().strip()
+        senha = request.form.get('senha')
+
         conn = conectar_db()
-        user = conn.execute('SELECT * FROM usuarios WHERE email = ? AND senha = ?', (email, senha)).fetchone()
+        conn.row_factory = sqlite3.Row 
+        usuario = conn.execute('SELECT * FROM usuarios WHERE email = ?', (email_digitado,)).fetchone()
         conn.close()
-        if user:
-            session['usuario_id'] = user['id']
-            session['usuario_email'] = user['email']
-            session['nome'] = user['nome']
-            session['usuario_logo'] = user['logo'] if 'logo' in user.keys() else None
+
+        if usuario and usuario['senha'] == senha:
+            session['usuario_id'] = usuario['id']
+            session['usuario_nome'] = usuario['nome']
+            session['usuario_email'] = usuario['email'].lower().strip()
+            
+            if session['usuario_email'] == ADMIN_EMAIL.lower().strip():
+                return redirect(url_for('admin_assinantes'))
+                
             return redirect(url_for('index'))
+        else:
+            flash('E-mail ou senha incorretos!', 'erro')
     return render_template('login.html')
 
 @app.route('/registrar', methods=['GET', 'POST'])
 def registrar():
     if request.method == 'POST':
         nome = request.form['nome']
-        email = request.form['email']
+        email = request.form['email'].lower().strip()
         senha = request.form['senha']
         if cadastrar_usuario(nome, email, senha):
             return redirect(url_for('login'))
+        else:
+            flash('Erro ao registrar. O e-mail já pode estar em uso.', 'erro')
     return render_template('registrar.html')
 
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('login'))
+
+# --- DASHBOARD (PÁGINA PRINCIPAL) ---
+@app.route('/')
+def index():
+    if 'usuario_id' not in session:
+        return redirect(url_for('login'))
+    
+    usuario_id = session['usuario_id']
+    assinante = obter_dados_assinante(usuario_id)
+    resumo = obter_resumo_financeiro(usuario_id)
+    produtos = listar_produtos(usuario_id)
+    clientes_list = listar_clientes(usuario_id)
+    
+    # Cálculos para os Cards
+    total_estoque = sum(p['quantidade'] for p in produtos) if produtos else 0
+    
+    # Busca valor total de FIADO (Pendências) para o Card de Ações Rápidas
+    conn = conectar_db()
+    res_fiado = conn.execute("""
+        SELECT SUM(valor_total) FROM vendas 
+        WHERE forma_pagamento = 'Fiado' AND usuario_id = ?
+    """, (usuario_id,)).fetchone()
+    total_fiado = res_fiado[0] if res_fiado[0] else 0
+    conn.close()
+
+    alertas_estoque = [p for p in produtos if p['quantidade'] < 5] if produtos else []
+    
+    return render_template('index.html', 
+                           assinante=assinante, 
+                           resumo=resumo, 
+                           produtos=produtos[:5], 
+                           total_estoque=total_estoque, 
+                           total_fiado=total_fiado,
+                           alertas_estoque=alertas_estoque)
 
 # --- SISTEMA DE RELATÓRIOS ---
 @app.route('/relatorios_painel')
@@ -79,59 +125,130 @@ def relatorios():
     
     hoje = datetime.now()
     if periodo == 'dia':
-        data_inicio = hoje.strftime('%Y-%m-%d')
+        data_inicio = hoje.strftime('%Y-%m-%d 00:00:00')
     elif periodo == 'semana':
-        data_inicio = (hoje - timedelta(days=7)).strftime('%Y-%m-%d')
+        data_inicio = (hoje - timedelta(days=7)).strftime('%Y-%m-%d 00:00:00')
     elif periodo == 'mes':
-        data_inicio = (hoje - timedelta(days=30)).strftime('%Y-%m-%d')
+        data_inicio = (hoje - timedelta(days=30)).strftime('%Y-%m-%d 00:00:00')
     else: # ano
-        data_inicio = (hoje - timedelta(days=365)).strftime('%Y-%m-%d')
+        data_inicio = (hoje - timedelta(days=365)).strftime('%Y-%m-%d 00:00:00')
 
     conn = conectar_db()
+    conn.row_factory = sqlite3.Row
+    
+    # SQL Agrupado: Soma quantidades e valores totais por produto
     query = """
-        SELECT v.*, p.nome as produto_nome, p.preco_venda, p.preco_custo 
+        SELECT 
+            p.nome as produto_nome, 
+            SUM(v.quantidade) as quantidade_total,
+            SUM(v.valor_total) as faturamento_total,
+            p.preco_venda, 
+            p.preco_custo,
+            MAX(v.data) as ultima_venda
         FROM vendas v 
         JOIN produtos p ON v.produto_id = p.id 
         WHERE v.usuario_id = ? AND v.data >= ?
-        ORDER BY v.data DESC
+        GROUP BY p.nome
+        ORDER BY faturamento_total DESC
     """
     rows = conn.execute(query, (usuario_id, data_inicio)).fetchall()
     conn.close()
 
-    vendas_filtradas = [dict(row) for row in rows]
-
-    for venda in vendas_filtradas:
+    vendas_agrupadas = []
+    for row in rows:
+        item = dict(row)
+        # Formata a data da última venda do produto para exibir no relatório
         try:
-            data_db = venda.get('data', '')
-            dt = datetime.strptime(data_db[:10], '%Y-%m-%d')
-            venda['data_formatada'] = dt.strftime('%d/%m/%Y')
+            dt = datetime.strptime(item['ultima_venda'][:19], '%Y-%m-%d %H:%M:%S')
+            item['ultima_venda_formatada'] = dt.strftime('%d/%m/%Y')
         except:
-            venda['data_formatada'] = venda.get('data', 'Sem data')
+            item['ultima_venda_formatada'] = "---"
+        vendas_agrupadas.append(item)
 
-    total_faturado = sum((v['quantidade'] or 0) * (v['preco_venda'] or 0) for v in vendas_filtradas) if vendas_filtradas else 0
-    total_custo = sum((v['quantidade'] or 0) * (v['preco_custo'] or 0) for v in vendas_filtradas) if vendas_filtradas else 0
+    # Cálculos Totais do Rodapé
+    total_faturado = sum(v['faturamento_total'] for v in vendas_agrupadas)
+    total_custo = sum(v['quantidade_total'] * v['preco_custo'] for v in vendas_agrupadas)
     lucro = total_faturado - total_custo
 
     return render_template('relatorios.html', 
-                           vendas=vendas_filtradas, 
+                           vendas=vendas_agrupadas, 
                            periodo=periodo.upper(), 
                            total=total_faturado, 
                            lucro=lucro)
 
-# --- DASHBOARD ---
-@app.route('/')
-def index():
+# --- GESTÃO DE INADIMPLENTES ---
+@app.route('/relatorio/inadimplentes')
+def relatorio_inadimplentes():
     if 'usuario_id' not in session:
         return redirect(url_for('login'))
+    
     usuario_id = session['usuario_id']
-    assinante = obter_dados_assinante(usuario_id)
-    resumo = obter_resumo_financeiro(usuario_id)
-    produtos = listar_produtos(usuario_id)
-    clientes_list = listar_clientes(usuario_id)
-    total_estoque = sum(p['quantidade'] for p in produtos) if produtos else 0
-    total_fiado = sum(c['saldo_devedor'] for c in clientes_list) if clientes_list else 0
-    return render_template('index.html', assinante=assinante, resumo=resumo, 
-                           produtos=produtos[:5], total_estoque=total_estoque, total_fiado=total_fiado)
+    conn = conectar_db()
+    conn.row_factory = sqlite3.Row
+    
+    user_data = conn.execute('SELECT pix FROM usuarios WHERE id = ?', (usuario_id,)).fetchone()
+    chave_pix = user_data['pix'] if user_data and user_data['pix'] else "[CADASTRE SEU PIX NAS CONFIGURAÇÕES]"
+
+    query = """
+        SELECT 
+            c.id as cliente_id,
+            c.nome as cliente_nome, 
+            c.telefone as cliente_telefone,
+            SUM(v.valor_total) as total_devido,
+            GROUP_CONCAT(p.nome || ' (x' || v.quantidade || ')', ' | ') as detalhes_itens,
+            MAX(v.data) as ultima_venda
+        FROM vendas v
+        JOIN clientes c ON v.cliente_id = c.id
+        JOIN produtos p ON v.produto_id = p.id
+        WHERE v.forma_pagamento = 'Fiado' AND v.usuario_id = ?
+        GROUP BY v.cliente_id
+        ORDER BY total_devido DESC
+    """
+    devedores_raw = conn.execute(query, (usuario_id,)).fetchall()
+    conn.close()
+
+    devedores = []
+    for d in devedores_raw:
+        item = dict(d)
+        try:
+            dt = datetime.strptime(item['ultima_venda'][:19], '%Y-%m-%d %H:%M:%S')
+            item['data_formatada'] = dt.strftime('%d/%m/%Y')
+        except:
+            item['data_formatada'] = "Data pendente"
+        devedores.append(item)
+    
+    return render_template('inadimplentes.html', devedores=devedores, chave_pix=chave_pix)
+
+@app.route('/venda/dar-baixa/<int:id>', methods=['POST'])
+def dar_baixa_pagamento(id):
+    if 'usuario_id' not in session:
+        return redirect(url_for('login'))
+    
+    usuario_id = session['usuario_id']
+    conn = conectar_db()
+    
+    try:
+        conn.execute("""
+            UPDATE vendas 
+            SET forma_pagamento = 'Pago', valor_total = 0
+            WHERE cliente_id = ? AND usuario_id = ? AND forma_pagamento = 'Fiado'
+        """, (id, usuario_id))
+        
+        conn.execute("""
+            UPDATE clientes 
+            SET saldo_devedor = 0 
+            WHERE id = ? AND usuario_id = ?
+        """, (id, usuario_id))
+        
+        conn.commit()
+        flash('Dívida total quitada com sucesso!', 'sucesso')
+    except Exception as e:
+        print(f"Erro ao dar baixa: {e}")
+        flash('Erro ao processar o pagamento.', 'erro')
+    finally:
+        conn.close()
+        
+    return redirect(url_for('relatorio_inadimplentes'))
 
 # --- CONFIGURAÇÕES ---
 @app.route('/configuracoes', methods=['GET', 'POST'])
@@ -140,10 +257,16 @@ def configuracoes():
         return redirect(url_for('login'))
     
     usuario_id = session['usuario_id']
+    conn = conectar_db()
+    conn.row_factory = sqlite3.Row
+
     if request.method == 'POST':
         novo_nome = request.form.get('nome') 
+        nova_pix = request.form.get('pix')
         arquivo = request.files.get('logo')
-        filename = session.get('usuario_logo')
+        
+        user_atual = conn.execute('SELECT logo FROM usuarios WHERE id = ?', (usuario_id,)).fetchone()
+        filename = user_atual['logo'] if user_atual else None
 
         if arquivo and arquivo.filename != '':
             if allowed_file(arquivo.filename):
@@ -151,38 +274,85 @@ def configuracoes():
                 filename = f"logo_user_{usuario_id}.{ext}"
                 arquivo.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
 
-        conn = conectar_db()
-        conn.execute('UPDATE usuarios SET nome = ?, logo = ? WHERE id = ?', 
-                     (novo_nome, filename, usuario_id))
+        conn.execute('UPDATE usuarios SET nome = ?, logo = ?, pix = ? WHERE id = ?', 
+                     (novo_nome, filename, nova_pix, usuario_id))
         conn.commit()
-        conn.close()
         
         session['nome'] = novo_nome
         session['usuario_logo'] = filename
+        flash('Configurações atualizadas com sucesso!', 'sucesso')
+        conn.close()
         return redirect(url_for('index'))
 
-    return render_template('configuracoes.html')
+    user_info = conn.execute('SELECT * FROM usuarios WHERE id = ?', (usuario_id,)).fetchone()
+    conn.close()
+    return render_template('configuracoes.html', user=user_info)
 
 # --- PRODUTOS ---
 @app.route('/produtos', methods=['GET', 'POST'])
 def produtos():
-    if 'usuario_id' not in session: return redirect(url_for('login'))
+    if 'usuario_id' not in session:
+        return redirect(url_for('login'))
+    
     usuario_id = session['usuario_id']
-    if request.method == 'POST':
-        cadastrar_produto(request.form.get('nome'), float(request.form.get('preco_custo') or 0), 
-                          float(request.form.get('preco_venda') or 0), int(request.form.get('quantidade') or 0), usuario_id)
-        return redirect(url_for('produtos'))
-    return render_template('produtos.html', produtos=listar_produtos(usuario_id))
+    conn = conectar_db()
 
-# --- CLIENTES E FIADO (CORRIGIDO COM CONTADOR DE DIAS) ---
+    if request.method == 'POST':
+        nome = request.form.get('nome').strip().upper()
+        preco_custo = float(request.form.get('preco_custo'))
+        preco_venda = float(request.form.get('preco_venda'))
+        quantidade = int(request.form.get('quantidade')) 
+
+        conn.execute('INSERT INTO produtos (nome, preco_custo, preco_venda, quantidade, usuario_id) VALUES (?, ?, ?, ?, ?)',
+                     (nome, preco_custo, preco_venda, quantidade, usuario_id)) 
+        
+        conn.commit()
+        conn.close()
+        flash('Produto cadastrado!', 'sucesso')
+        return redirect(url_for('produtos'))
+
+    produtos_lista = conn.execute('SELECT * FROM produtos WHERE usuario_id = ? ORDER BY nome ASC', (usuario_id,)).fetchall()
+    conn.close()
+    return render_template('produtos.html', produtos=produtos_lista)
+
+@app.route('/excluir_produto/<int:id>')
+def excluir_produto(id):
+    if 'usuario_id' not in session: return redirect(url_for('login'))
+    conn = conectar_db()
+    conn.execute('DELETE FROM produtos WHERE id = ? AND usuario_id = ?', (id, session['usuario_id']))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('produtos'))
+
+# --- CLIENTES ---
 @app.route('/clientes', methods=['GET', 'POST'])
 def clientes():
     if 'usuario_id' not in session: return redirect(url_for('login'))
     usuario_id = session['usuario_id']
     
     if request.method == 'POST':
-        if request.form.get('nome'):
-            cadastrar_cliente(request.form.get('nome'), request.form.get('telefone'), usuario_id)
+        nome = request.form.get('nome', '').strip().upper()
+        telefone = request.form.get('telefone')
+        limite = request.form.get('limite_credito')
+        limite = float(limite) if limite else 0.0
+        
+        if nome:
+            conn = conectar_db()
+            existente = conn.execute('SELECT id FROM clientes WHERE nome = ? AND usuario_id = ?', 
+                                     (nome, usuario_id)).fetchone()
+            
+            if existente:
+                conn.close()
+                flash('Erro: Já existe um cliente com este nome!', 'erro')
+                return redirect(url_for('clientes'))
+            
+            conn.execute('''
+                INSERT INTO clientes (nome, telefone, limite_fiado, usuario_id, saldo_devedor, permite_fiado) 
+                VALUES (?, ?, ?, ?, 0, 1)
+            ''', (nome, telefone, limite, usuario_id))
+            conn.commit()
+            conn.close()
+            flash('Cliente cadastrado!', 'sucesso')
             return redirect(url_for('clientes'))
     
     lista_clientes = listar_clientes(usuario_id)
@@ -190,170 +360,149 @@ def clientes():
     
     for c in lista_clientes:
         cliente_dict = dict(c)
-        
-        # --- CORREÇÃO DA DATA E DIAS DE ATRASO ---
-        if cliente_dict.get('saldo_devedor', 0) > 0:
-            try:
-                # Pega a data (ex: 2026-02-27 09:32...) e corta apenas os 10 primeiros caracteres (2026-02-27)
-                data_ref = cliente_dict.get('data_ultima_compra') or cliente_dict.get('data_cadastro')
-                
-                if data_ref:
-                    # Transformamos em objeto de data para calcular os dias
-                    data_dt = datetime.strptime(data_ref[:10], '%Y-%m-%d')
-                    dias_atraso = (datetime.now() - data_dt).days
-                    cliente_dict['dias_atraso'] = dias_atraso
-                    
-                    # CRIAMOS A DATA FORMATADA (BR): 27/02/2026
-                    cliente_dict['data_formatada'] = data_dt.strftime('%d/%m/%Y')
-                else:
-                    cliente_dict['dias_atraso'] = 0
-                    cliente_dict['data_formatada'] = "Sem data"
-            except:
-                cliente_dict['dias_atraso'] = 0
-                cliente_dict['data_formatada'] = "Erro na data"
-        else:
-            cliente_dict['dias_atraso'] = 0
-            cliente_dict['data_formatada'] = "-"
-
+        if cliente_dict.get('telefone'):
+            num = ''.join(filter(str.isdigit, str(cliente_dict['telefone'])))
+            cliente_dict['link_zap'] = f"https://wa.me/55{num}"
         clientes_com_fiado.append(cliente_dict)
         
     return render_template('clientes.html', clientes=clientes_com_fiado)
 
-@app.route('/cliente/<int:id>/detalhes')
-def cliente_detalhes(id):
-    if 'usuario_id' not in session: return redirect(url_for('login'))
-    usuario_id = session['usuario_id']
-    cliente = obter_cliente_por_id(id, usuario_id)
-    if not cliente: return "Cliente não encontrado", 404
-    historico = obter_extrato_cliente(id, usuario_id)
-    return render_template('cliente_detalhes.html', cliente=cliente, historico=historico)
-
-@app.route('/cliente/<int:id>/configurar_fiado', methods=['POST'])
-def configurar_fiado(id):
-    if 'usuario_id' not in session: return redirect(url_for('login'))
-    permite = 1 if request.form.get('permite_fiado') else 0
-    limite = float(request.form.get('limite_fiado') or 0)
-    atualizar_configuracao_fiado(id, permite, limite, session['usuario_id'])
-    return redirect(url_for('cliente_detalhes', id=id))
 
 @app.route('/quitar_fiado/<int:id>', methods=['POST'])
 def quitar_fiado(id):
     if 'usuario_id' not in session: return redirect(url_for('login'))
+    usuario_id = session['usuario_id']
     valor_pago = float(request.form.get('valor_pago') or 0)
     enviar_whats = request.form.get('enviar_whatsapp')
     
-    conn = conectar_db()
-    cliente = conn.execute('SELECT * FROM clientes WHERE id = ?', (id,)).fetchone()
-    conn.close()
-    
-    if cliente and valor_pago > 0:
+    if valor_pago > 0:
+        # 1. Registrar o pagamento na tabela de históricos/saldo do cliente
         registrar_pagamento_cliente(id, valor_pago)
-        novo_saldo = max(0, cliente['saldo_devedor'] - valor_pago)
         
-        if enviar_whats:
-            msg = f"Olá {cliente['nome']}, recebemos seu pagamento de R$ {valor_pago:.2f}. Seu saldo devedor atual é de R$ {novo_saldo:.2f}. Obrigado!"
+        # 2. Corrigir o total em aberto nas vendas individuais (Abatimento em cascata)
+        conn = conectar_db()
+        conn.row_factory = sqlite3.Row
+        vendas_fiado = conn.execute("""
+            SELECT id, valor_total FROM vendas 
+            WHERE cliente_id = ? AND forma_pagamento = 'Fiado' AND usuario_id = ?
+            ORDER BY data ASC
+        """, (id, usuario_id)).fetchall()
+        
+        saldo_pagamento = valor_pago
+        for v in vendas_fiado:
+            if saldo_pagamento <= 0: break
+            
+            v_id = v['id']
+            v_valor = v['valor_total']
+            
+            if saldo_pagamento >= v_valor:
+                # Quita esta venda totalmente
+                conn.execute("UPDATE vendas SET valor_total = 0, forma_pagamento = 'Pago' WHERE id = ?", (v_id,))
+                saldo_pagamento -= v_valor
+            else:
+                # Quita apenas uma parte desta venda
+                novo_total = v_valor - saldo_pagamento
+                conn.execute("UPDATE vendas SET valor_total = ? WHERE id = ?", (novo_total, v_id))
+                saldo_pagamento = 0
+        
+        conn.commit()
+        
+        # 3. Lógica do WhatsApp
+        cliente = conn.execute('SELECT * FROM clientes WHERE id = ?', (id,)).fetchone()
+        conn.close()
+
+        if enviar_whats and cliente:
+            msg = f"Olá {cliente['nome']}, recebemos seu pagamento de R$ {valor_pago:.2f}. Obrigado!"
             msg_encoded = urllib.parse.quote(msg)
-            # Limpando o telefone para o WhatsApp
             telefone = "".join(filter(str.isdigit, cliente['telefone'] or ""))
             if telefone:
                 return redirect(f"https://wa.me/55{telefone}?text={msg_encoded}")
 
     return redirect(url_for('clientes'))
 
-@app.route('/venda/<int:id>/comprovante')
-def comprovante_venda(id):
-    if 'usuario_id' not in session: return redirect(url_for('login'))
-    
-    conn = conectar_db()
-    query = """
-        SELECT v.*, p.nome as produto_nome, p.preco_venda, 
-               c.nome as cliente_nome, c.telefone as cliente_telefone, 
-               u.logo as usuario_logo, u.nome as empresa_nome
-        FROM vendas v 
-        JOIN produtos p ON v.produto_id = p.id 
-        JOIN usuarios u ON v.usuario_id = u.id
-        LEFT JOIN clientes c ON v.cliente_id = c.id
-        WHERE v.id = ? AND v.usuario_id = ?
-    """
-    venda = conn.execute(query, (id, session['usuario_id'])).fetchone()
-    conn.close()
-    
-    if not venda: return "Venda não encontrada", 404
-    
-    link_zap = None
-    if venda['cliente_telefone']:
-        try:
-            data_dt = datetime.strptime(venda['data'][:19], '%Y-%m-%d %H:%M:%S')
-            data_formatada = data_dt.strftime('%d/%m/%Y %H:%M')
-        except:
-            data_formatada = venda['data']
-
-        msg = (
-            f"⚡ *{venda['empresa_nome'] or 'SmartControl'}* ⚡\n\n"
-            f"Olá, *{venda['cliente_nome'] or 'Cliente'}*! 👋\n"
-            f"Aqui está o detalhe da sua compra:\n\n"
-            f"📦 *Produto:* {venda['produto_nome']}\n"
-            f"🔢 *Qtd:* {venda['quantidade']}\n"
-            f"💰 *Total:* R$ {venda['valor_total']:.2f}\n"
-            f"💳 *Pagamento:* {venda['forma_pagamento'].upper()}\n"
-            f"📅 *Data:* {data_formatada}\n\n"
-            f"Agradecemos a preferência! 😊"
-        )
-        
-        msg_encoded = urllib.parse.quote(msg)
-        telefone = "".join(filter(str.isdigit, venda['cliente_telefone']))
-        if telefone:
-            link_zap = f"https://wa.me/55{telefone}?text={msg_encoded}"
-    
-    return render_template('comprovante.html', venda=venda, link_zap=link_zap)
-
-# ---VENDAS ---
+# --- VENDAS ---
 @app.route('/vendas', methods=['GET', 'POST'])
 def vendas():
-    if 'usuario_id' not in session: return redirect(url_for('login'))
+    if 'usuario_id' not in session:
+        return redirect(url_for('login'))
+    
     usuario_id = session['usuario_id']
+
     if request.method == 'POST':
         itens_json = request.form.get('itens_json')
         cliente_id = request.form.get('cliente_id')
         forma_pagamento = request.form.get('forma_pagamento')
+
         if itens_json:
             try:
-                itens = json.loads(itens_json)
-                c_id = int(cliente_id) if cliente_id and cliente_id != "" else None
-                for item in itens:
-                    registrar_venda(int(item['id']), c_id, int(item['qtd']), forma_pagamento, usuario_id)
-                return redirect(url_for('vendas')) 
+                c_id = int(cliente_id) if cliente_id and cliente_id.strip() != "" else None
+                sucesso = processar_venda_completa(itens_json, c_id, forma_pagamento, usuario_id)
+                if sucesso:
+                    flash('Venda realizada com sucesso!', 'sucesso')
+                else:
+                    flash('Erro ao processar venda.', 'erro')
+                return redirect(url_for('vendas'))
             except Exception as e:
-                return f"<script>alert('{str(e)}'); window.location.href='/vendas';</script>"
-    return render_template('vendas.html', produtos=listar_produtos(usuario_id), 
-                           clientes=listar_clientes(usuario_id), vendas=listar_vendas(usuario_id))
+                flash(f'Erro técnico: {str(e)}', 'erro')
+                return redirect(url_for('vendas'))
+
+    vendas_raw = listar_vendas(usuario_id)
+    vendas_formatadas = []
+
+    for v in vendas_raw:
+        venda_dict = dict(v)
+        try:
+            data_str = venda_dict.get('data', '')
+            dt = datetime.strptime(data_str[:19], '%Y-%m-%d %H:%M:%S')
+            venda_dict['data_formatada'] = dt.strftime('%d/%m/%Y %H:%M')
+        except:
+            venda_dict['data_formatada'] = venda_dict.get('data')
+        
+        vendas_formatadas.append(venda_dict)
+
+    return render_template('vendas.html', 
+                            produtos=listar_produtos(usuario_id), 
+                            clientes=listar_clientes(usuario_id), 
+                            vendas=vendas_formatadas)
+
+@app.route('/venda/<int:id>/comprovante')
+def comprovante_venda(id):
+    if 'usuario_id' not in session: return redirect(url_for('login'))
+    conn = conectar_db()
+    venda_ref = conn.execute("""
+        SELECT v.*, c.nome as cliente_nome, c.telefone as cliente_telefone, u.nome as empresa_nome
+        FROM vendas v
+        LEFT JOIN clientes c ON v.cliente_id = c.id
+        LEFT JOIN usuarios u ON v.usuario_id = u.id
+        WHERE v.id = ? AND v.usuario_id = ?
+    """, (id, session['usuario_id'])).fetchone()
+
+    if not venda_ref:
+        conn.close()
+        return redirect(url_for('vendas'))
+
+    itens_venda = conn.execute("""
+        SELECT v.*, p.nome as produto_nome
+        FROM vendas v
+        LEFT JOIN produtos p ON v.produto_id = p.id
+        WHERE v.data = ? AND v.usuario_id = ?
+    """, (venda_ref['data'], session['usuario_id'])).fetchall()
+    conn.close()
+
+    total_geral = sum(item['valor_total'] for item in itens_venda)
+    return render_template('comprovante.html', venda=venda_ref, itens=itens_venda, total=total_geral)
 
 # --- PLANOS E ADMIN ---
 @app.route('/planos')
 def planos():
-    if 'usuario_id' not in session: return redirect(url_for('login'))
-    if session.get('usuario_email') == ADMIN_EMAIL: return redirect(url_for('admin_assinantes'))
+    if session.get('usuario_email') == ADMIN_EMAIL.lower().strip(): 
+        return redirect(url_for('admin_assinantes'))
     return render_template('planos.html')
-
-@app.route('/admin/cadastrar_assinante', methods=['POST'])
-def admin_cadastrar_assinante():
-    if 'usuario_email' not in session or session['usuario_email'] != ADMIN_EMAIL:
-        return "Proibido", 403
-    
-    nome = request.form.get('nome')
-    email = request.form.get('email')
-    senha = request.form.get('senha')
-    
-    if cadastrar_usuario(nome, email, senha):
-        flash(f"Usuário {nome} cadastrado com sucesso!", "success")
-    else:
-        flash("Erro ao cadastrar usuário. E-mail pode já existir.", "error")
-        
-    return redirect(url_for('admin_assinantes'))
 
 @app.route('/admin/assinantes')
 def admin_assinantes():
-    if 'usuario_email' not in session or session['usuario_email'] != ADMIN_EMAIL: return "Proibido", 403
+    if 'usuario_email' not in session or session['usuario_email'] != ADMIN_EMAIL:
+        return "Proibido", 403
     return render_template('admin_assinantes.html', assinantes=listar_todos_assinantes())
 
 @app.route('/admin/renovar/<int:id>/<int:dias>')
@@ -368,5 +517,16 @@ def admin_excluir(id):
     excluir_usuario(id)
     return redirect(url_for('admin_assinantes'))
 
+@app.route('/financas')
+def financas():
+    if 'usuario_id' not in session: return redirect(url_for('login'))
+    resumo_data = obter_resumo_financeiro(session['usuario_id']) 
+    return render_template('financas.html', resumo=resumo_data)
+
+@app.route('/temas')
+def temas():
+    return render_template('temas.html')
+
 if __name__ == '__main__':
+    criar_tabelas() 
     app.run(debug=True, host='0.0.0.0')

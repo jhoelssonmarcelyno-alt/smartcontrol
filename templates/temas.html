@@ -1,0 +1,73 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="animate-fadeIn">
+    <div class="mb-8">
+        <h2 class="text-2xl font-black italic tracking-tighter text-white uppercase flex items-center">
+            <i class="fas fa-palette mr-3 text-primary"></i> Personalização de Temas
+        </h2>
+        <p class="text-gray-400 text-sm">Escolha a cor de destaque que mais combina com seu negócio.</p>
+    </div>
+
+    <div class="bg-[#1e293b] p-8 rounded-3xl border border-gray-700 shadow-2xl">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+            
+            <button onclick="mudarTema('azul')" class="bg-[#0f172a] p-8 rounded-2xl border border-gray-700 hover:border-blue-500 transition-all flex flex-col items-center group shadow-lg">
+                <div class="w-16 h-16 bg-blue-500 rounded-full mb-4 shadow-[0_0_20px_rgba(59,130,246,0.4)] group-hover:scale-110 transition"></div>
+                <span class="text-white font-black uppercase italic tracking-tighter">Azul Profissional</span>
+            </button>
+
+            <button onclick="mudarTema('verde')" class="bg-[#0f172a] p-8 rounded-2xl border border-gray-700 hover:border-emerald-500 transition-all flex flex-col items-center group shadow-lg">
+                <div class="w-16 h-16 bg-emerald-500 rounded-full mb-4 shadow-[0_0_20px_rgba(16,185,129,0.4)] group-hover:scale-110 transition"></div>
+                <span class="text-white font-black uppercase italic tracking-tighter">Verde Lucro</span>
+            </button>
+
+            <button onclick="mudarTema('amarelo')" class="bg-[#0f172a] p-8 rounded-2xl border border-gray-700 hover:border-yellow-500 transition-all flex flex-col items-center group shadow-lg">
+                <div class="w-16 h-16 bg-yellow-500 rounded-full mb-4 shadow-[0_0_20px_rgba(234,179,8,0.4)] group-hover:scale-110 transition"></div>
+                <span class="text-white font-black uppercase italic tracking-tighter">Amarelo Ouro</span>
+            </button>
+
+            <button onclick="mudarTema('rosa')" class="bg-[#0f172a] p-8 rounded-2xl border border-gray-700 hover:border-pink-500 transition-all flex flex-col items-center group shadow-lg">
+                <div class="w-16 h-16 bg-pink-500 rounded-full mb-4 shadow-[0_0_20px_rgba(236,72,153,0.4)] group-hover:scale-110 transition"></div>
+                <span class="text-white font-black uppercase italic tracking-tighter">Rosa Moderno</span>
+            </button>
+
+            <button onclick="mudarTema('vermelho')" class="bg-[#0f172a] p-8 rounded-2xl border border-gray-700 hover:border-red-500 transition-all flex flex-col items-center group shadow-lg">
+                <div class="w-16 h-16 bg-red-500 rounded-full mb-4 shadow-[0_0_20px_rgba(239,68,68,0.4)] group-hover:scale-110 transition"></div>
+                <span class="text-white font-black uppercase italic tracking-tighter">Vermelho Alerta</span>
+            </button>
+
+        </div>
+
+        <div class="mt-10 pt-6 border-t border-gray-700 text-center">
+            <a href="{{ url_for('index') }}" class="text-gray-500 hover:text-white transition uppercase text-xs font-bold tracking-widest">
+                <i class="fas fa-arrow-left mr-2"></i> Voltar ao Painel Principal
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+function mudarTema(cor) {
+    // 1. Salva a escolha localmente para aplicação instantânea
+    localStorage.setItem('tema-cor', cor);
+    
+    // 2. Chama a função global definida no layout.html
+    if (typeof aplicarTemaSalvo === "function") {
+        aplicarTemaSalvo();
+    }
+
+    // 3. Sincroniza com o servidor (Banco de Dados)
+    fetch('/salvar_tema/' + cor)
+        .then(response => response.json())
+        .then(data => {
+            if(data.status === 'sucesso') {
+                console.log("Tema sincronizado com a conta!");
+            }
+        })
+        .catch(err => {
+            console.warn("Servidor offline, tema salvo apenas localmente.");
+        });
+}
+</script>
+{% endblock %}

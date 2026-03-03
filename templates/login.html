@@ -19,6 +19,15 @@
                 <input type="password" name="senha" required class="w-full bg-[#0f172a] border border-gray-600 rounded-xl p-3 outline-none focus:border-green-500">
             </div>
             <button type="submit" class="w-full bg-green-600 hover:bg-green-700 py-3 rounded-xl font-bold transition">Entrar no Sistema</button>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="bg-red-500/20 border border-red-500 text-red-500 p-3 rounded-xl mb-4 text-sm text-center">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
         </form>
         
         <p class="text-center text-gray-500 text-xs mt-6">Ainda não tem conta? <a href="/planos" class="text-green-500">Escolha um plano</a></p>

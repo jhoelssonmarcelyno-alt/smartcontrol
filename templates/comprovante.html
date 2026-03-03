@@ -6,84 +6,93 @@
     <title>Comprovante de Venda #{{ venda.id }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white; padding: 0; }
+            .receipt-card { border: none; shadow: none; width: 100%; max-width: 100%; }
+        }
+        .receipt-card { max-width: 500px; margin: 20px auto; background: white; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); padding: 30px; border: 1px solid #eee; }
+        .dashed-line { border-top: 2px dashed #e2e8f0; margin: 20px 0; }
+    </style>
 </head>
-<body class="bg-gray-100 flex justify-center p-4">
-    <div class="bg-white w-full max-w-sm shadow-xl rounded-lg overflow-hidden border-t-8 border-blue-600">
-        
-        <div class="p-6 text-center border-b bg-white">
+<body class="bg-slate-50 font-sans">
+
+    <div class="receipt-card">
+        <div class="text-center mb-6">
             {% if venda.usuario_logo %}
-                <img src="{{ url_for('static', filename='uploads/' + venda.usuario_logo) }}" 
-                     alt="Logo" class="mx-auto h-16 w-auto mb-2 object-contain">
+                <img src="{{ url_for('static', filename='uploads/' + venda.usuario_logo) }}" class="h-16 mx-auto mb-3 rounded-lg">
             {% endif %}
-            <h1 class="text-xl font-black text-gray-800 uppercase italic">
-                {{ venda.empresa_nome if venda.empresa_nome else 'SmartControl' }}
-            </h1>
-            <p class="text-gray-500 text-[10px] uppercase tracking-tighter">Comprovante de Venda</p>
+            <h1 class="text-xl font-black uppercase tracking-tight text-slate-800">
+    {{ venda.empresa_nome if venda.empresa_nome else 'JHOELSSONControl' }}
+</h1>
+            <p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest">
+    {{ data_br }}
+</p>
         </div>
 
-        <div class="p-6 space-y-4">
-            <div class="flex justify-between text-sm">
-                <span class="text-gray-500">Data:</span>
-                <span class="font-bold">{{ venda.data }}</span>
+        <div class="dashed-line"></div>
+
+        <div class="mb-6 text-sm">
+            <p class="text-slate-400 text-[10px] uppercase font-black mb-1">Cliente</p>
+            <p class="font-bold text-slate-700">{{ venda.cliente_nome or 'Consumidor Final' }}</p>
+            {% if venda.cliente_telefone %}
+                <p class="text-slate-500 text-xs">{{ venda.cliente_telefone }}</p>
+            {% endif %}
+        </div>
+
+        <div class="mb-6">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-[10px] uppercase text-slate-400 border-b border-slate-100">
+                        <th class="text-left py-2 font-black">Item</th>
+                        <th class="text-center py-2 font-black">Qtd</th>
+                        <th class="text-right py-2 font-black">Total</th>
+                    </tr>
+                </thead>
+                <tbody class="text-slate-700">
+    {% for item in itens %}
+    <tr class="border-b border-slate-50">
+        <td class="py-3 font-medium uppercase text-xs">{{ item.produto_nome }}</td>
+        <td class="py-3 text-center font-mono">{{ item.quantidade }}</td>
+        <td class="py-3 text-right font-bold">R$ {{ "%.2f"|format(item.valor_total) }}</td>
+    </tr>
+    {% endfor %}
+</tbody>
+            </table>
+        </div>
+
+        <div class="bg-slate-50 p-4 rounded-xl space-y-2">
+            <div class="flex justify-between text-xs text-slate-500">
+                <span>Forma de Pagamento:</span>
+                <span class="font-black uppercase italic">{{ venda.forma_pagamento }}</span>
             </div>
-            <div class="flex justify-between text-sm">
-                <span class="text-gray-500">Cliente:</span>
-                <span class="font-bold text-blue-600 uppercase">{{ venda.cliente_nome or 'Consumidor' }}</span>
-            </div>
+            <div class="flex justify-between items-end pt-2 border-t border-slate-200">
+    <span class="text-sm font-bold text-slate-800 uppercase">Total Geral:</span>
+    <span class="text-2xl font-black text-emerald-600">R$ {{ "%.2f"|format(total) }}</span>
+</div>
+        </div>
+
+        <div class="mt-8 text-center">
+            <p class="text-[9px] text-slate-400 uppercase font-bold tracking-[0.2em]">Obrigado pela preferência!</p>
+        </div>
+
+        <div class="no-print mt-10 space-y-3">
+            <button onclick="window.print()" class="w-full bg-slate-800 hover:bg-black text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest transition shadow-lg">
+                <i class="fas fa-print mr-2"></i> Imprimir Agora
+            </button>
             
-            <div class="border-t border-dashed pt-4">
-                <div class="flex justify-between">
-                    <span class="font-medium text-gray-800">{{ venda.produto_nome }}</span>
-                    <span class="text-gray-600">x{{ venda.quantidade }}</span>
-                </div>
-            </div>
+            {% if link_zap %}
+            <a href="{{ link_zap }}" target="_blank" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest transition shadow-lg flex items-center justify-center">
+                <i class="fab fa-whatsapp mr-2 text-lg"></i> Enviar p/ WhatsApp
+            </a>
+            {% endif %}
 
-            <div class="bg-gray-50 p-4 rounded-lg border">
-                <div class="flex justify-between text-xs text-gray-500 mb-1">
-                    <span>Forma de Pagamento:</span>
-                    <span class="uppercase">{{ venda.forma_pagamento }}</span>
-                </div>
-                <div class="flex justify-between text-xl font-black text-gray-900">
-                    <span>TOTAL:</span>
-                    <span>R$ {{ "%.2f"|format(venda.valor_total) }}</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="p-6 bg-gray-50 text-center space-y-3 no-print border-t">
-            <p class="text-[10px] text-gray-400 uppercase tracking-widest mb-2">Ações de Envio e Navegação</p>
-            
-            <div class="flex flex-col space-y-2">
-                {% if link_zap %}
-                <a href="{{ link_zap }}" target="_blank" 
-                   class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition flex items-center justify-center shadow-lg uppercase text-xs">
-                    <i class="fab fa-whatsapp mr-2 text-lg"></i> Enviar p/ WhatsApp
-                </a>
-                {% endif %}
-                
-                <a href="{{ url_for('vendas') }}" 
-                   class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition flex items-center justify-center shadow-lg uppercase text-xs">
-                    <i class="fas fa-cart-plus mr-2"></i> Realizar Nova Venda
-                </a>
-
-                <div class="flex justify-between pt-2">
-                    <button onclick="window.print()" class="text-gray-500 font-bold text-[10px] uppercase hover:text-gray-800 transition">
-                        <i class="fas fa-print mr-1"></i> Imprimir
-                    </button>
-                    <a href="{{ url_for('index') }}" class="text-gray-500 font-bold text-[10px] uppercase hover:text-gray-800 transition">
-                        <i class="fas fa-home mr-1"></i> Ir para o Painel
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <div class="p-4 bg-white text-center">
-            <p class="text-[10px] text-gray-400 uppercase tracking-widest italic">Obrigado pela preferência!</p>
+            <a href="{{ url_for('vendas') }}" class="w-full text-slate-400 py-2 text-center block text-[10px] uppercase font-black hover:text-slate-600">
+                <i class="fas fa-arrow-left mr-1"></i> Voltar ao Sistema
+            </a>
         </div>
     </div>
 
-    <style>
-        @media print { .no-print { display: none; } }
-    </style>
 </body>
 </html>
