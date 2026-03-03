@@ -57,6 +57,18 @@ def excluir_usuario(usuario_id):
     finally:
         conn.close()
 
+def atualizar_senha_usuario(usuario_id, nova_senha):
+    conn = conectar_db()
+    try:
+        conn.execute("UPDATE usuarios SET senha = ? WHERE id = ?", (nova_senha, usuario_id))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Erro ao mudar senha: {e}")
+        return False
+    finally:
+        conn.close()
+
 def obter_dados_assinante(usuario_id):
     conn = conectar_db()
     user = conn.execute('SELECT nome, plano, data_expiracao FROM usuarios WHERE id = ?', (usuario_id,)).fetchone()

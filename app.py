@@ -33,6 +33,7 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # --- LOGIN / REGISTRAR / LOGOUT ---
+# --- ROTA DE LOGIN CORRIGIDA ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -48,7 +49,10 @@ def login():
             session['usuario_id'] = usuario['id']
             session['usuario_nome'] = usuario['nome']
             session['usuario_email'] = usuario['email'].lower().strip()
-            
+            # ESSENCIAL: Garante que a logo carregue no layout
+            session['usuario_logo'] = usuario['logo'] 
+
+            # Redireciona para o admin APENAS no login inicial
             if session['usuario_email'] == ADMIN_EMAIL.lower().strip():
                 return redirect(url_for('admin_assinantes'))
                 
@@ -278,8 +282,10 @@ def configuracoes():
                      (novo_nome, filename, nova_pix, usuario_id))
         conn.commit()
         
-        session['nome'] = novo_nome
+        # ATUALIZA A SESSÃO EM TEMPO REAL
+        session['usuario_nome'] = novo_nome
         session['usuario_logo'] = filename
+        
         flash('Configurações atualizadas com sucesso!', 'sucesso')
         conn.close()
         return redirect(url_for('index'))
@@ -495,9 +501,24 @@ def comprovante_venda(id):
 # --- PLANOS E ADMIN ---
 @app.route('/planos')
 def planos():
-    if session.get('usuario_email') == ADMIN_EMAIL.lower().strip(): 
-        return redirect(url_for('admin_assinantes'))
+    # Agora qualquer usuário, incluindo o admin, verá a página de planos
     return render_template('planos.html')
+
+@app.route('/admin/cadastrar_assinante', methods=['POST'])
+def admin_cadastrar_assinante():
+    if 'usuario_email' not in session or session['usuario_email'] != ADMIN_EMAIL:
+        return "Proibido", 403
+    
+    nome = request.form.get('nome')
+    email = request.form.get('email').lower().strip()
+    senha = request.form.get('senha')
+    
+    if cadastrar_usuario(nome, email, senha):
+        flash('Assinante cadastrado com sucesso!', 'sucesso')
+    else:
+        flash('Erro ao cadastrar. E-mail já existe.', 'erro')
+        
+    return redirect(url_for('admin_assinantes'))
 
 @app.route('/admin/assinantes')
 def admin_assinantes():
@@ -515,6 +536,46 @@ def renovar(id, dias):
 def admin_excluir(id):
     if 'usuario_email' not in session or session['usuario_email'] != ADMIN_EMAIL: return "Proibido", 403
     excluir_usuario(id)
+    return redirect(url_for('admin_assinantes'))
+
+@app.route('/alterar_senha', methods=['POST'])
+def alterar_senha():
+    if 'usuario_id' not in session:
+        return redirect(url_for('login'))
+    
+    usuario_id = session['usuario_id']
+    senha_atual = request.form.get('senha_atual')
+    nova_senha = request.form.get('nova_senha')
+    confirmar_senha = request.form.get('confirmar_senha')
+
+    # 1. Verifica se a nova senha coincide com a confirmação
+    if nova_senha != confirmar_senha:
+        flash('As novas senhas não coincidem!', 'erro')
+        return redirect(url_for('configuracoes'))
+
+    # 2. Verifica se a senha atual está correta
+    conn = conectar_db()
+    user = conn.execute('SELECT senha FROM usuarios WHERE id = ?', (usuario_id,)).fetchone()
+    conn.close()
+
+    if user['senha'] == senha_atual:
+        if atualizar_senha_usuario(usuario_id, nova_senha):
+            flash('Senha alterada com sucesso!', 'sucesso')
+        else:
+            flash('Erro técnico ao salvar nova senha.', 'erro')
+    else:
+        flash('Senha atual incorreta!', 'erro')
+
+    return redirect(url_for('configuracoes'))
+
+@app.route('/admin/resetar_senha/<int:id>')
+def admin_resetar_senha(id):
+    if session.get('usuario_email') != ADMIN_EMAIL:
+        return "Proibido", 403
+    
+    # Reseta para uma senha padrão
+    atualizar_senha_usuario(id, "123456")
+    flash(f'Senha do usuário {id} resetada para 123456', 'sucesso')
     return redirect(url_for('admin_assinantes'))
 
 @app.route('/financas')

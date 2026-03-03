@@ -29,7 +29,6 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
         }
 
-        /* BARRAS DIGITÁVEIS - FOCO PROFISSIONAL */
         .input-pro {
             background-color: #ffffff !important;
             border: 1px solid #cbd5e1 !important;
@@ -50,7 +49,6 @@
         .animate-zoomIn { animation: zoomIn 0.2s ease-out; }
         @keyframes zoomIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 
-        /* Estilo para os Toasts */
         .toast-item {
             transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
         }
@@ -89,16 +87,22 @@
         <div class="container mx-auto px-6 py-4 flex justify-between items-center">
             <div class="flex items-center space-x-3 cursor-pointer" onclick="window.location.href='/'">
                 <div class="relative w-10 h-10 overflow-hidden rounded-xl shadow-lg border border-white/10">
-                    {% if session.get('usuario_logo') %}
-                        <img src="{{ url_for('static', filename='uploads/' + session['usuario_logo']) }}" class="w-full h-full object-cover">
-                    {% else %}
-                        <div class="bg-blue-600 w-full h-full flex items-center justify-center">
-                            <i class="fas fa-rocket text-white"></i>
-                        </div>
-                    {% endif %}
-                </div>
+    {% if session.get('usuario_logo') %}
+        <img src="{{ url_for('static', filename='uploads/' + session['usuario_logo']) }}" class="w-full h-full object-cover">
+        <span class="absolute bg-black text-[8px]">{{ session['usuario_logo'] }}</span>
+    {% else %}
+        <div class="bg-blue-600 w-full h-full flex items-center justify-center">
+            <i class="fas fa-rocket text-white"></i>
+        </div>
+    {% endif %}
+</div>
+                
                 <h1 class="text-xl font-black tracking-tighter uppercase italic text-white">
-                    {{ session.get('nome', 'Smart') }}<span class="text-blue-500">Control</span>
+                    {% if session.get('usuario_nome') %}
+                        {{ session.get('usuario_nome') }}
+                    {% else %}
+                        Smart<span class="text-blue-500">Control</span>
+                    {% endif %}
                 </h1>
             </div>
             
@@ -159,11 +163,9 @@
     </footer>
 
     <script>
-        // Lógica dos Toasts
+        // Lógica dos Toasts (Alertas flutuantes)
         document.querySelectorAll('.toast-item').forEach(toast => {
-            // Entrada
             setTimeout(() => { toast.classList.remove('translate-x-full'); }, 100);
-            // Saída automática
             setTimeout(() => {
                 toast.classList.add('opacity-0', '-translate-y-4');
                 setTimeout(() => { toast.remove(); }, 500);
