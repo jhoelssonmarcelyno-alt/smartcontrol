@@ -2,35 +2,90 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - SmartControl</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .animate-fadeIn {
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
 </head>
-<body class="bg-[#0f172a] text-white flex items-center justify-center min-h-screen">
-    <div class="bg-[#1e293b] p-10 rounded-3xl shadow-2xl border border-gray-700 w-full max-w-md">
-        <h1 class="text-3xl font-bold text-center text-green-500 mb-8 italic">SmartControl</h1>
+<body class="bg-[#0f172a] text-white flex items-center justify-center min-h-screen p-4">
+    <div class="bg-[#1e293b] p-8 md:p-10 rounded-3xl shadow-2xl border border-gray-700 w-full max-w-md animate-fadeIn">
         
-        <form method="POST" class="space-y-6">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-black text-green-500 italic tracking-tighter uppercase">
+                Smart<span class="text-white">Control</span>
+            </h1>
+            <p class="text-gray-400 text-sm mt-2">Gestão inteligente para o seu negócio.</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div id="alert-message" class="bg-red-500/10 border border-red-500/50 text-red-500 p-4 rounded-2xl mb-6 text-sm flex items-center">
+                        <i class="fas fa-exclamation-circle mr-3"></i>
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <form method="POST" class="space-y-5">
             <div>
-                <label class="block text-sm text-gray-400 mb-2">Seu Email</label>
-                <input type="email" name="email" required class="w-full bg-[#0f172a] border border-gray-600 rounded-xl p-3 outline-none focus:border-green-500">
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">E-mail de Acesso</label>
+                <div class="relative">
+                    <i class="fas fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-gray-500"></i>
+                    <input type="email" name="email" required 
+                        placeholder="exemplo@email.com"
+                        class="w-full bg-[#0f172a] border border-gray-600 rounded-2xl p-4 pl-12 outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition">
+                </div>
             </div>
+
             <div>
-                <label class="block text-sm text-gray-400 mb-2">Sua Senha</label>
-                <input type="password" name="senha" required class="w-full bg-[#0f172a] border border-gray-600 rounded-xl p-3 outline-none focus:border-green-500">
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Senha Secreta</label>
+                <div class="relative">
+                    <i class="fas fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-gray-500"></i>
+                    <input type="password" name="senha" required 
+                        placeholder="••••••••"
+                        class="w-full bg-[#0f172a] border border-gray-600 rounded-2xl p-4 pl-12 outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition">
+                </div>
             </div>
-            <button type="submit" class="w-full bg-green-600 hover:bg-green-700 py-3 rounded-xl font-bold transition">Entrar no Sistema</button>
-            {% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    {% for category, message in messages %}
-      <div class="bg-red-500/20 border border-red-500 text-red-500 p-3 rounded-xl mb-4 text-sm text-center">
-        {{ message }}
-      </div>
-    {% endfor %}
-  {% endif %}
-{% endwith %}
+
+            <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-2xl font-black uppercase tracking-widest transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-green-900/20">
+                Entrar no Sistema
+            </button>
         </form>
         
-        <p class="text-center text-gray-500 text-xs mt-6">Ainda não tem conta? <a href="/planos" class="text-green-500">Escolha um plano</a></p>
+        <div class="mt-8 pt-6 border-t border-gray-700/50 text-center">
+            <p class="text-gray-400 text-sm mb-4">Ainda não tem uma conta?</p>
+            <div class="flex flex-col gap-3">
+                <a href="{{ url_for('registrar') }}" class="text-green-500 hover:text-green-400 font-bold transition">
+                    <i class="fas fa-user-plus mr-2"></i> Criar Conta Grátis
+                </a>
+                <a href="{{ url_for('planos') }}" class="text-gray-500 hover:text-white text-xs transition">
+                    Ver Planos Profissionais
+                </a>
+            </div>
+        </div>
     </div>
+
+    <script>
+        // Faz a mensagem de erro sumir suavemente após 5 segundos
+        setTimeout(() => {
+            const alert = document.getElementById('alert-message');
+            if (alert) {
+                alert.style.transition = 'opacity 0.5s ease';
+                alert.style.opacity = '0';
+                setTimeout(() => alert.remove(), 500);
+            }
+        }, 5000);
+    </script>
 </body>
 </html>
