@@ -27,16 +27,26 @@ if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
 def conectar_db():
     try:
         if DATABASE_URL:
-            conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+            # Limpa a URL de parâmetros extras que o psycopg2 não gosta
+            url = DATABASE_URL
+            if "channel_binding" in url:
+                url = url.split("&channel_binding")[0]
+            
+            # Garante o protocolo correto
+            if url.startswith("postgres://"):
+                url = url.replace("postgres://", "postgresql://", 1)
+                
+            conn = psycopg2.connect(url)
             return conn
         else:
+            # SQLite local
             DATABASE = 'database/smartcontrol.db'
             os.makedirs('database', exist_ok=True)
-            conn = sqlite3.connect(DATABASE, timeout=10) 
+            conn = sqlite3.connect(DATABASE, timeout=10)
             conn.row_factory = sqlite3.Row
             return conn
     except Exception as e:
-        logger.error(f"Falha crítica na conexão com o banco: {e}")
+        logger.error(f"Falha crítica na conexão: {e}")
         raise
 
 PL = '%s' if DATABASE_URL else '?'
