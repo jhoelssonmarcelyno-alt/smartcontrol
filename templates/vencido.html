@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assinatura Expirada - SmartControl</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #f4f7f6; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .card-vencido { border: none; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 500px; width: 90%; text-align: center; padding: 40px; background: white; }
+        .icon-lock { font-size: 60px; color: #e74c3c; margin-bottom: 20px; }
+        .btn-whatsapp { background-color: #25d366; color: white; border: none; padding: 12px 25px; border-radius: 50px; font-weight: bold; text-decoration: none; display: inline-block; transition: 0.3s; }
+        .btn-whatsapp:hover { background-color: #128c7e; color: white; transform: scale(1.05); }
+        .pix-box { background: #f8f9fa; border: 2px dashed #dee2e6; padding: 15px; border-radius: 10px; margin: 20px 0; font-family: monospace; font-size: 1.1rem; }
+    </style>
+</head>
+<body>
+
+<div class="card-vencido">
+    <div class="icon-lock">
+        <i class="fas fa-lock"></i>
+    </div>
+    <h2 class="fw-bold text-dark">Acesso Suspenso</h2>
+    <p class="text-muted">Olá, <strong>{{ session['usuario_nome'] }}</strong>. O seu período de utilização no plano <span class="badge bg-warning text-dark">{{ dados.plano if dados else 'Grátis' }}</span> chegou ao fim.</p>
+    
+    <div class="alert alert-warning text-start">
+        <small><i class="fas fa-info-circle"></i> <strong>Não se preocupe:</strong> Os seus dados, produtos e histórico de vendas continuam guardados com segurança. Basta renovar para libertar o acesso.</small>
+    </div>
+
+    <div class="mt-4">
+        <h5>Como renovar?</h5>
+        <p class="small text-muted">Efetue o pagamento da sua mensalidade via PIX e envie o comprovativo.</p>
+        
+        <div class="pix-box">
+            jhoelssonmarcelyno@gmail.com
+        </div>
+
+        <a href="https://wa.me/55SEUNUMEROAQUI?text=Olá! Acabei de fazer o pagamento da minha assinatura do SmartControl. Segue o comprovante." 
+           class="btn btn-whatsapp mt-2">
+            <i class="fab fa-whatsapp"></i> Enviar Comprovativo
+        </a>
+    </div>
+
+    <div class="mt-4">
+        <a href="{{ url_for('logout') }}" class="text-decoration-none text-muted small">Sair da conta</a>
+    </div>
+</div>
+
+</body>
+</html>

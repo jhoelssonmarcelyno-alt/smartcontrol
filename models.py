@@ -4,30 +4,41 @@ from psycopg2.extras import RealDictCursor
 from datetime import datetime, timedelta
 import json
 import os
+import logging
+
+# --- CONFIGURAÇÃO DE LOGGING ---
+# Os logs serão exibidos no console do Render e salvos em arquivo se local.
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(), # Exibe no terminal (Render Logs)
+        logging.FileHandler('sistema.log', encoding='utf-8') # Salva em arquivo local
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # --- CONFIGURAÇÃO DE AMBIENTE ---
-# No Render, o DATABASE_URL já vem configurado. 
-# No PC, ele tentará usar o SQLite se não encontrar a variável.
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
-# Ajuste crucial para o Neon.tech (PostgreSQL) funcionar no Render/Heroku
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 def conectar_db():
-    if DATABASE_URL:
-        # Conexão para Produção (Render + Neon)
-        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-        return conn
-    else:
-        # Conexão para Desenvolvimento Local (SQLite)
-        DATABASE = 'database/smartcontrol.db'
-        os.makedirs('database', exist_ok=True)
-        conn = sqlite3.connect(DATABASE, timeout=10) 
-        conn.row_factory = sqlite3.Row
-        return conn
+    try:
+        if DATABASE_URL:
+            conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+            return conn
+        else:
+            DATABASE = 'database/smartcontrol.db'
+            os.makedirs('database', exist_ok=True)
+            conn = sqlite3.connect(DATABASE, timeout=10) 
+            conn.row_factory = sqlite3.Row
+            return conn
+    except Exception as e:
+        logger.error(f"Falha crítica na conexão com o banco: {e}")
+        raise
 
-# Variável para usar nos SQLs: se for Postgres usa %s, se for SQLite usa ?
 PL = '%s' if DATABASE_URL else '?'
 
 def obter_cursor(conn):
@@ -47,9 +58,10 @@ def cadastrar_usuario(nome, email, senha):
             VALUES ({PL}, {PL}, {PL}, 'Teste Grátis', {PL})
         """, (nome, email, senha, expiracao))
         conn.commit()
+        logger.info(f"Novo usuário cadastrado: {email}")
         return True
     except Exception as e:
-        print(f"Erro ao cadastrar usuário: {e}")
+        logger.error(f"Erro ao cadastrar usuário {email}: {e}")
         return False
     finally:
         conn.close()
@@ -57,42 +69,53 @@ def cadastrar_usuario(nome, email, senha):
 def cadastrar_cliente(nome, telefone, limite, prazo, usuario_id):
     conn = conectar_db()
     cursor = obter_cursor(conn)
-    cursor.execute(f'''
-        INSERT INTO clientes (nome, telefone, saldo_devedor, permite_fiado, limite_fiado, prazo_pagamento, usuario_id)
-        VALUES ({PL}, {PL}, 0.0, 1, {PL}, {PL}, {PL})
-    ''', (nome.upper(), telefone, limite, prazo, usuario_id))
-    conn.commit()
-    conn.close()     
+    try:
+        cursor.execute(f'''
+            INSERT INTO clientes (nome, telefone, saldo_devedor, permite_fiado, limite_fiado, prazo_pagamento, usuario_id)
+            VALUES ({PL}, {PL}, 0.0, 1, {PL}, {PL}, {PL})
+        ''', (nome.upper(), telefone, limite, prazo, usuario_id))
+        conn.commit()
+        logger.info(f"Cliente {nome} cadastrado pelo usuário ID {usuario_id}")
+    except Exception as e:
+        logger.error(f"Erro ao cadastrar cliente {nome}: {e}")
+    finally:
+        conn.close()     
 
 def listar_todos_assinantes():
     conn = conectar_db()
     cursor = obter_cursor(conn)
-    cursor.execute('SELECT id, nome, email, plano, data_expiracao FROM usuarios')
-    assinantes = cursor.fetchall()
-    conn.close()
-    return assinantes
+    try:
+        cursor.execute('SELECT id, nome, email, plano, data_expiracao FROM usuarios ORDER BY id DESC')
+        return cursor.fetchall()
+    finally:
+        conn.close()
 
 def renovar_assinatura(usuario_id, dias):
     conn = conectar_db()
     cursor = obter_cursor(conn)
-    nova_expiracao = (datetime.now() + timedelta(days=dias)).strftime('%Y-%m-%d %H:%M:%S')
-    plano_nome = f"Plano {dias} Dias"
-    cursor.execute(f"UPDATE usuarios SET data_expiracao = {PL}, plano = {PL} WHERE id = {PL}", 
-                   (nova_expiracao, plano_nome, usuario_id))
-    conn.commit()
-    conn.close()
+    try:
+        nova_expiracao = (datetime.now() + timedelta(days=dias)).strftime('%Y-%m-%d %H:%M:%S')
+        plano_nome = f"Plano {dias} Dias"
+        cursor.execute(f"UPDATE usuarios SET data_expiracao = {PL}, plano = {PL} WHERE id = {PL}", 
+                       (nova_expiracao, plano_nome, usuario_id))
+        conn.commit()
+        logger.info(f"Assinatura do usuário {usuario_id} renovada por {dias} dias.")
+    finally:
+        conn.close()
 
 def excluir_usuario(usuario_id):
     conn = conectar_db()
     cursor = obter_cursor(conn)
     try:
+        cursor.execute(f"DELETE FROM vendas WHERE usuario_id = {PL}", (usuario_id,))
         cursor.execute(f"DELETE FROM produtos WHERE usuario_id = {PL}", (usuario_id,))
         cursor.execute(f"DELETE FROM clientes WHERE usuario_id = {PL}", (usuario_id,))
-        cursor.execute(f"DELETE FROM vendas WHERE usuario_id = {PL}", (usuario_id,))
         cursor.execute(f"DELETE FROM usuarios WHERE id = {PL}", (usuario_id,))
         conn.commit()
+        logger.warning(f"USUÁRIO EXCLUÍDO DEFINITIVAMENTE: ID {usuario_id}")
     except Exception as e:
         conn.rollback()
+        logger.error(f"Erro ao excluir usuário {usuario_id}: {e}")
         raise e 
     finally:
         conn.close()
@@ -103,9 +126,10 @@ def atualizar_senha_usuario(usuario_id, nova_senha):
     try:
         cursor.execute(f"UPDATE usuarios SET senha = {PL} WHERE id = {PL}", (nova_senha, usuario_id))
         conn.commit()
+        logger.info(f"Senha alterada para o usuário ID {usuario_id}")
         return True
     except Exception as e:
-        print(f"Erro ao mudar senha: {e}")
+        logger.error(f"Erro ao mudar senha ID {usuario_id}: {e}")
         return False
     finally:
         conn.close()
@@ -113,78 +137,86 @@ def atualizar_senha_usuario(usuario_id, nova_senha):
 def obter_dados_assinante(usuario_id):
     conn = conectar_db()
     cursor = obter_cursor(conn)
-    cursor.execute(f'SELECT nome, plano, data_expiracao FROM usuarios WHERE id = {PL}', (usuario_id,))
-    user = cursor.fetchone()
-    conn.close()
-    if user:
-        try:
-            exp_str = str(user['data_expiracao'])[:19]
-            expiracao = datetime.strptime(exp_str, '%Y-%m-%d %H:%M:%S')
-            restantes = (expiracao - datetime.now()).days
-            return {'nome': user['nome'], 'plano': user['plano'], 'dias_restantes': max(0, restantes)}
-        except:
-            return {'nome': user['nome'], 'plano': user['plano'], 'dias_restantes': 0}
-    return None
+    try:
+        cursor.execute(f'SELECT nome, plano, data_expiracao FROM usuarios WHERE id = {PL}', (usuario_id,))
+        user = cursor.fetchone()
+        if user:
+            try:
+                exp_str = str(user['data_expiracao'])[:19]
+                expiracao = datetime.strptime(exp_str, '%Y-%m-%d %H:%M:%S')
+                restantes = (expiracao - datetime.now()).days
+                return {'nome': user['nome'], 'plano': user['plano'], 'dias_restantes': max(0, restantes)}
+            except:
+                return {'nome': user['nome'], 'plano': user['plano'], 'dias_restantes': 0}
+        return None
+    finally:
+        conn.close()
 
 # --- FUNÇÕES DE NEGÓCIO ---
 
 def cadastrar_produto(nome, preco_custo, preco_venda, quantidade, usuario_id):
     conn = conectar_db()
     cursor = obter_cursor(conn)
-    cursor.execute(f'''
-        INSERT INTO produtos (nome, preco_custo, preco_venda, quantidade, usuario_id)
-        VALUES ({PL}, {PL}, {PL}, {PL}, {PL})
-    ''', (nome.upper(), preco_custo, preco_venda, quantidade, usuario_id))
-    conn.commit()
-    conn.close()
+    try:
+        cursor.execute(f'''
+            INSERT INTO produtos (nome, preco_custo, preco_venda, quantidade, usuario_id)
+            VALUES ({PL}, {PL}, {PL}, {PL}, {PL})
+        ''', (nome.upper(), preco_custo, preco_venda, quantidade, usuario_id))
+        conn.commit()
+    finally:
+        conn.close()
 
 def listar_produtos(usuario_id):
     conn = conectar_db()
     cursor = obter_cursor(conn)
-    cursor.execute(f'SELECT * FROM produtos WHERE usuario_id = {PL} ORDER BY nome ASC', (usuario_id,))
-    produtos = cursor.fetchall()
-    conn.close()
-    return produtos
+    try:
+        cursor.execute(f'SELECT * FROM produtos WHERE usuario_id = {PL} ORDER BY nome ASC', (usuario_id,))
+        return cursor.fetchall()
+    finally:
+        conn.close()
 
 def listar_clientes(usuario_id):
     conn = conectar_db()
     cursor = obter_cursor(conn)
-    cursor.execute(f'SELECT * FROM clientes WHERE usuario_id = {PL} ORDER BY nome ASC', (usuario_id,))
-    clientes = cursor.fetchall()
-    conn.close()
-    return clientes
+    try:
+        cursor.execute(f'SELECT * FROM clientes WHERE usuario_id = {PL} ORDER BY nome ASC', (usuario_id,))
+        return cursor.fetchall()
+    finally:
+        conn.close()
 
 def obter_cliente_por_id(cliente_id, usuario_id):
     conn = conectar_db()
     cursor = obter_cursor(conn)
-    cursor.execute(f'SELECT * FROM clientes WHERE id = {PL} AND usuario_id = {PL}', (cliente_id, usuario_id))
-    cliente = cursor.fetchone()
-    conn.close()
-    return cliente
+    try:
+        cursor.execute(f'SELECT * FROM clientes WHERE id = {PL} AND usuario_id = {PL}', (cliente_id, usuario_id))
+        return cursor.fetchone()
+    finally:
+        conn.close()
 
 # --- SISTEMA DE VENDAS E HISTÓRICO ---
 
 def listar_vendas(usuario_id):
     conn = conectar_db()
     cursor = obter_cursor(conn)
-    cursor.execute(f'''
-        SELECT v.*, p.nome AS produto_nome, c.nome AS cliente_nome
-        FROM vendas v
-        JOIN produtos p ON v.produto_id = p.id
-        LEFT JOIN clientes c ON v.cliente_id = c.id
-        WHERE v.usuario_id = {PL}
-        ORDER BY v.data DESC LIMIT 100
-    ''', (usuario_id,))
-    vendas = cursor.fetchall()
-    conn.close()
-    return vendas
+    try:
+        cursor.execute(f'''
+            SELECT v.*, p.nome AS produto_nome, c.nome AS cliente_nome
+            FROM vendas v
+            JOIN produtos p ON v.produto_id = p.id
+            LEFT JOIN clientes c ON v.cliente_id = c.id
+            WHERE v.usuario_id = {PL}
+            ORDER BY v.data DESC LIMIT 100
+        ''', (usuario_id,))
+        return cursor.fetchall()
+    finally:
+        conn.close()
 
 def processar_venda_completa(itens_json, cliente_id, forma_pagamento, usuario_id):
     if not itens_json: return False
+    conn = conectar_db()
+    cursor = obter_cursor(conn)
     try:
         itens = json.loads(itens_json)
-        conn = conectar_db()
-        cursor = obter_cursor(conn)
         data_agora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         total_venda_geral = 0
 
@@ -192,14 +224,15 @@ def processar_venda_completa(itens_json, cliente_id, forma_pagamento, usuario_id
             p_id = item['id']
             qtd = int(item['qtd'])
             
-            cursor.execute(f"SELECT preco_custo, preco_venda, quantidade FROM produtos WHERE id = {PL}", (p_id,))
+            cursor.execute(f"SELECT preco_custo, preco_venda, quantidade FROM produtos WHERE id = {PL} AND usuario_id = {PL}", (p_id, usuario_id))
             prod = cursor.fetchone()
             
             if not prod or prod['quantidade'] < qtd:
+                logger.warning(f"Venda negada: Estoque insuficiente produto {p_id} (Usuário {usuario_id})")
                 raise Exception(f"Estoque insuficiente")
 
-            v_total = prod['preco_venda'] * qtd
-            lucro = (prod['preco_venda'] - prod['preco_custo']) * qtd
+            v_total = float(prod['preco_venda']) * qtd
+            lucro = (float(prod['preco_venda']) - float(prod['preco_custo'])) * qtd
             total_venda_geral += v_total
 
             cursor.execute(f"""
@@ -214,13 +247,15 @@ def processar_venda_completa(itens_json, cliente_id, forma_pagamento, usuario_id
                 UPDATE clientes 
                 SET saldo_devedor = COALESCE(saldo_devedor, 0) + {PL}, 
                     data_ultima_compra = {PL} 
-                WHERE id = {PL}
-            """, (total_venda_geral, data_agora, cliente_id))
+                WHERE id = {PL} AND usuario_id = {PL}
+            """, (total_venda_geral, data_agora, cliente_id, usuario_id))
         
         conn.commit()
+        logger.info(f"Venda processada com sucesso. Valor: R${total_venda_geral:.2f} (Usuário {usuario_id})")
         return True
     except Exception as e:
-        print(f"Erro na venda: {e}")
+        conn.rollback()
+        logger.error(f"Erro ao processar venda completa: {e}")
         return False
     finally:
         conn.close()
@@ -228,142 +263,129 @@ def processar_venda_completa(itens_json, cliente_id, forma_pagamento, usuario_id
 def obter_resumo_financeiro(usuario_id):
     conn = conectar_db()
     cursor = obter_cursor(conn)
-    
-    cursor.execute(f'''
-        SELECT 
-            COALESCE(SUM(valor_total), 0) as faturamento, 
-            COALESCE(SUM(lucro), 0) as lucro 
-        FROM vendas WHERE usuario_id = {PL}
-    ''', (usuario_id,))
-    res_vendas = cursor.fetchone()
+    try:
+        cursor.execute(f'SELECT COALESCE(SUM(valor_total), 0) as f, COALESCE(SUM(lucro), 0) as l FROM vendas WHERE usuario_id={PL}', (usuario_id,))
+        res_vendas = cursor.fetchone()
 
-    cursor.execute(f'''
-        SELECT 
-            COALESCE(SUM(quantidade * preco_venda), 0) as valor_venda,
-            COALESCE(SUM(quantidade * (preco_venda - preco_custo)), 0) as lucro_previsto
-        FROM produtos WHERE usuario_id = {PL}
-    ''', (usuario_id,))
-    res_estoque = cursor.fetchone()
+        cursor.execute(f'SELECT COALESCE(SUM(quantidade*preco_venda), 0) as v, COALESCE(SUM(quantidade*(preco_venda-preco_custo)), 0) as lp FROM produtos WHERE usuario_id={PL}', (usuario_id,))
+        res_estoque = cursor.fetchone()
 
-    cursor.execute(f'''
-        SELECT COALESCE(SUM(saldo_devedor), 0) as total
-        FROM clientes 
-        WHERE usuario_id = {PL} AND saldo_devedor > 0
-    ''', (usuario_id,))
-    res_fiado = cursor.fetchone()
+        cursor.execute(f'SELECT COALESCE(SUM(saldo_devedor), 0) as t FROM clientes WHERE usuario_id={PL} AND saldo_devedor>0', (usuario_id,))
+        res_fiado = cursor.fetchone()
 
-    conn.close()
-
-    return {
-        'faturamento': res_vendas['faturamento'],
-        'lucro': res_vendas['lucro'],
-        'valor_estoque': res_estoque['valor_venda'],
-        'lucro_previsto': res_estoque['lucro_previsto'],
-        'total_fiado': res_fiado['total']
-    }
+        return {
+            'faturamento': float(res_vendas['f'] or 0),
+            'lucro': float(res_vendas['l'] or 0),
+            'valor_estoque': float(res_estoque['v'] or 0),
+            'lucro_previsto': float(res_estoque['lp'] or 0),
+            'total_fiado': float(res_fiado['t'] or 0)
+        }
+    finally:
+        conn.close()
 
 # --- FINANCEIRO E CONFIGURAÇÕES ---
 
 def registrar_pagamento_cliente(cliente_id, valor_pago):
     conn = conectar_db()
     cursor = obter_cursor(conn)
-    cursor.execute(f'UPDATE clientes SET saldo_devedor = saldo_devedor - {PL} WHERE id = {PL}', (valor_pago, cliente_id))
-    cursor.execute(f'UPDATE clientes SET saldo_devedor = 0 WHERE id = {PL} AND saldo_devedor < 0', (cliente_id,))
-    conn.commit()
-    conn.close()
+    try:
+        cursor.execute(f'UPDATE clientes SET saldo_devedor = saldo_devedor - {PL} WHERE id = {PL}', (valor_pago, cliente_id))
+        cursor.execute(f'UPDATE clientes SET saldo_devedor = 0 WHERE id = {PL} AND saldo_devedor < 0', (cliente_id,))
+        conn.commit()
+        logger.info(f"Pagamento registrado: R${valor_pago} para cliente ID {cliente_id}")
+    finally:
+        conn.close()
 
 def obter_extrato_cliente(cliente_id, usuario_id):
     conn = conectar_db()
     cursor = obter_cursor(conn)
-    c_id = int(cliente_id)
-    
-    if DATABASE_URL:
-        sql_data = "to_char(v.data::timestamp, 'DD/MM/YYYY HH24:MI')"
-    else:
-        sql_data = "strftime('%d/%m/%Y %H:%M', v.data)"
+    try:
+        c_id = int(cliente_id)
+        if DATABASE_URL:
+            sql_data = "to_char(v.data::timestamp, 'DD/MM/YYYY HH24:MI')"
+        else:
+            sql_data = "strftime('%d/%m/%Y %H:%M', v.data)"
 
-    cursor.execute(f'''
-        SELECT 
-            {sql_data} as data_formatada, 
-            p.nome as produto, 
-            v.quantidade, 
-            v.valor_total, 
-            v.forma_pagamento
-        FROM vendas v
-        JOIN produtos p ON v.produto_id = p.id
-        WHERE v.cliente_id = {PL} 
-        ORDER BY v.data DESC
-    ''', (c_id,))
-    vendas = cursor.fetchall()
-    conn.close()
-    return vendas
+        cursor.execute(f'''
+            SELECT {sql_data} as data_formatada, p.nome as produto, v.quantidade, v.valor_total, v.forma_pagamento
+            FROM vendas v JOIN produtos p ON v.produto_id = p.id
+            WHERE v.cliente_id = {PL} AND v.usuario_id = {PL}
+            ORDER BY v.data DESC
+        ''', (c_id, usuario_id))
+        return cursor.fetchall()
+    finally:
+        conn.close()
 
 def atualizar_configuracao_fiado(cliente_id, permite, limite, usuario_id):
     conn = conectar_db()
     cursor = obter_cursor(conn)
-    cursor.execute(f'UPDATE clientes SET permite_fiado = {PL}, limite_fiado = {PL} WHERE id = {PL} AND usuario_id = {PL}', 
-                  (permite, limite, cliente_id, usuario_id))
-    conn.commit()
-    conn.close()
+    try:
+        cursor.execute(f'UPDATE clientes SET permite_fiado = {PL}, limite_fiado = {PL} WHERE id = {PL} AND usuario_id = {PL}', 
+                      (permite, limite, cliente_id, usuario_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+def assinatura_ativa(usuario_id):
+    """Verifica se o utilizador ainda tem dias de acesso restantes"""
+    conn = conectar_db()
+    cursor = obter_cursor(conn)
+    try:
+        cursor.execute(f'SELECT data_expiracao FROM usuarios WHERE id = {PL}', (usuario_id,))
+        user = cursor.fetchone()
+        if user:
+            # Converte a string do banco para objeto datetime
+            exp_str = str(user['data_expiracao'])[:19]
+            expiracao = datetime.strptime(exp_str, '%Y-%m-%d %H:%M:%S')
+            
+            # Se a expiração for maior que agora, está ativo
+            return expiracao > datetime.now()
+        return False
+    except Exception as e:
+        logger.error(f"Erro ao verificar assinatura do ID {usuario_id}: {e}")
+        return False
+    finally:
+        conn.close()
+
+def obter_metricas_globais_admin():
+    """Retorna números totais da plataforma (apenas para o Admin)"""
+    conn = conectar_db()
+    cursor = obter_cursor(conn)
+    try:
+        # Total de usuários
+        cursor.execute('SELECT COUNT(*) as total FROM usuarios')
+        total_users = cursor.fetchone()
+        
+        # Total de vendas processadas na plataforma
+        cursor.execute('SELECT SUM(valor_total) as f, SUM(lucro) as l FROM vendas')
+        vendas_globais = cursor.fetchone()
+        
+        # Usuários que expiram nos próximos 3 dias
+        hoje = datetime.now()
+        prazo = (hoje + timedelta(days=3)).strftime('%Y-%m-%d %H:%M:%S')
+        cursor.execute(f'SELECT COUNT(*) as total FROM usuarios WHERE data_expiracao <= {PL}', (prazo,))
+        prestes_a_vencer = cursor.fetchone()
+
+        return {
+            'total_usuarios': total_users['total'] if not DATABASE_URL else total_users['total'],
+            'faturamento_plataforma': float(vendas_globais['f'] or 0),
+            'lucro_plataforma': float(vendas_globais['l'] or 0),
+            'usuarios_vencendo': prestes_a_vencer['total']
+        }
+    finally:
+        conn.close()     
 
 def criar_tabelas():
     conn = conectar_db()
     cursor = obter_cursor(conn)
-    
     id_type = "SERIAL PRIMARY KEY" if DATABASE_URL else "INTEGER PRIMARY KEY AUTOINCREMENT"
     real_type = "DOUBLE PRECISION" if DATABASE_URL else "REAL"
-
-    cursor.execute(f'''
-        CREATE TABLE IF NOT EXISTS usuarios (
-            id {id_type},
-            nome TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            senha TEXT NOT NULL,
-            logo TEXT,
-            pix TEXT,
-            plano TEXT,
-            data_expiracao TEXT
-        )
-    ''')
-
-    cursor.execute(f'''
-        CREATE TABLE IF NOT EXISTS produtos (
-            id {id_type},
-            nome TEXT NOT NULL,
-            preco_custo {real_type},
-            preco_venda {real_type},
-            quantidade INTEGER,
-            usuario_id INTEGER
-        )
-    ''')
-    
-    cursor.execute(f'''
-        CREATE TABLE IF NOT EXISTS clientes (
-            id {id_type},
-            nome TEXT NOT NULL,
-            telefone TEXT,
-            saldo_devedor {real_type} DEFAULT 0,
-            permite_fiado INTEGER DEFAULT 1,
-            limite_fiado {real_type} DEFAULT 0,
-            prazo_pagamento INTEGER DEFAULT 15,
-            data_ultima_compra TEXT,
-            usuario_id INTEGER
-        )
-    ''')
-    
-    cursor.execute(f'''
-        CREATE TABLE IF NOT EXISTS vendas (
-            id {id_type},
-            produto_id INTEGER,
-            cliente_id INTEGER,
-            quantidade INTEGER,
-            valor_total {real_type},
-            lucro {real_type},
-            forma_pagamento TEXT,
-            data TEXT,
-            usuario_id INTEGER
-        )
-    ''')
-    
-    conn.commit()
-    conn.close()
+    try:
+        cursor.execute(f'CREATE TABLE IF NOT EXISTS usuarios (id {id_type}, nome TEXT NOT NULL, email TEXT UNIQUE NOT NULL, senha TEXT NOT NULL, logo TEXT, pix TEXT, plano TEXT, data_expiracao TEXT)')
+        cursor.execute(f'CREATE TABLE IF NOT EXISTS produtos (id {id_type}, nome TEXT NOT NULL, preco_custo {real_type}, preco_venda {real_type}, quantidade INTEGER, usuario_id INTEGER)')
+        cursor.execute(f'CREATE TABLE IF NOT EXISTS clientes (id {id_type}, nome TEXT NOT NULL, telefone TEXT, saldo_devedor {real_type} DEFAULT 0, permite_fiado INTEGER DEFAULT 1, limite_fiado {real_type} DEFAULT 0, prazo_pagamento INTEGER DEFAULT 15, data_ultima_compra TEXT, usuario_id INTEGER)')
+        cursor.execute(f'CREATE TABLE IF NOT EXISTS vendas (id {id_type}, produto_id INTEGER, cliente_id INTEGER, quantidade INTEGER, valor_total {real_type}, lucro {real_type}, forma_pagamento TEXT, data TEXT, usuario_id INTEGER)')
+        conn.commit()
+        logger.info("Tabelas verificadas/criadas com sucesso.")
+    finally:
+        conn.close()
