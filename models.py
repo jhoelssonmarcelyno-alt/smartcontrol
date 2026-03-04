@@ -96,7 +96,17 @@ def listar_todos_assinantes():
     cursor = obter_cursor(conn)
     try:
         cursor.execute('SELECT id, nome, email, plano, data_expiracao FROM usuarios ORDER BY id DESC')
-        return cursor.fetchall()
+        rows = cursor.fetchall()
+        resultado = []
+        for r in rows:
+            d = dict(r)
+            try:
+                exp = datetime.strptime(str(d['data_expiracao'])[:19], '%Y-%m-%d %H:%M:%S')
+                d['dias_restantes'] = max(0, (exp - datetime.now()).days)
+            except:
+                d['dias_restantes'] = 0
+            resultado.append(d)
+        return resultado
     finally:
         conn.close()
 
