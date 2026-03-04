@@ -105,6 +105,9 @@ def listar_todos_assinantes():
                 d['dias_restantes'] = max(0, (exp - datetime.now()).days)
             except:
                 d['dias_restantes'] = 0
+            # Garante que data_expiracao nunca é None no template
+            if not d.get('data_expiracao'):
+                d['data_expiracao'] = '2000-01-01 00:00:00'
             resultado.append(d)
         return resultado
     finally:
