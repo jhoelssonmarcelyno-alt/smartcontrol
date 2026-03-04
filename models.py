@@ -4,14 +4,19 @@ from psycopg2.extras import RealDictCursor
 from datetime import datetime, timedelta
 import json
 import os
-import dj_database_url
+# Removi o 'import dj_database_url' porque ele não é necessário aqui
 from dotenv import load_dotenv
 
-# Carrega as variáveis do arquivo .env
+# Carrega as variáveis (útil para rodar no seu PC)
 load_dotenv()
 
 # --- CONFIGURAÇÃO DE AMBIENTE ---
+# Puxa do Render ou do seu .env local
 DATABASE_URL = os.getenv('DATABASE_URL')
+
+# Ajuste crucial para o Neon.tech funcionar no Render
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 def conectar_db():
     if DATABASE_URL:
