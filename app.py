@@ -2,9 +2,10 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from datetime import datetime, timedelta
 import json
 import os
+import urllib.parse
 from werkzeug.utils import secure_filename
 
-# Importando TODAS as funções do models
+# Importando TODAS as funções do models.py
 from models import (
     listar_produtos, listar_clientes, cadastrar_produto, 
     cadastrar_cliente, conectar_db, 
@@ -33,7 +34,7 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # --- AUXILIARES ---
-def atualizar_senha_usuario_local(usuario_id, nova_senha):
+def atualizar_senha_usuario(usuario_id, nova_senha):
     try:
         conn = conectar_db()
         cursor = obter_cursor(conn)
@@ -61,7 +62,7 @@ def login():
             session['usuario_id'] = usuario['id']
             session['usuario_nome'] = usuario['nome']
             session['usuario_email'] = usuario['email'].lower().strip()
-            session['usuario_logo'] = usuario.get('logo') 
+            session['usuario_logo'] = usuario['logo'] 
             
             if session['usuario_email'] == ADMIN_EMAIL.lower().strip():
                 return redirect(url_for('admin_assinantes'))
@@ -139,7 +140,6 @@ def detalhes_cliente(id):
         data_origem = vd.get('data')
         if data_origem:
             try:
-                # Limpa a string da data para evitar erros de milissegundos no Postgres
                 dt_obj = datetime.strptime(str(data_origem)[:19], '%Y-%m-%d %H:%M:%S')
                 vd['data_dia'] = dt_obj.strftime('%d/%m/%Y')
                 vd['data_formatada'] = dt_obj.strftime('%d/%m/%Y %H:%M')
@@ -155,6 +155,7 @@ def detalhes_cliente(id):
 
 # --- CLIENTES ---
 @app.route('/clientes', methods=['GET', 'POST'])
+@app.route('/gestao_clientes', methods=['GET', 'POST'])
 def clientes():
     if 'usuario_id' not in session: return redirect(url_for('login'))
     usuario_id = session['usuario_id']
@@ -197,12 +198,12 @@ def clientes():
         
         d['dias_atraso'], d['data_formatada'] = 0, "Sem compras"
         
-        # Lógica para extrair a data correta do resultado do banco
+        # Ajuste para pegar o resultado da agregação MAX
         venda_data = None
         if venda_rec:
             if isinstance(venda_rec, dict): venda_data = venda_rec.get('max') or venda_rec.get('MAX(data)')
-            elif isinstance(venda_rec, (list, tuple)): venda_data = venda_rec[0]
-
+            elif isinstance(venda_rec, (tuple, list)): venda_data = venda_rec[0]
+        
         if venda_data:
             try:
                 dt_v = datetime.strptime(str(venda_data)[:19], '%Y-%m-%d %H:%M:%S')
@@ -214,6 +215,94 @@ def clientes():
         clientes_formatados.append(d)
     conn.close()
     return render_template('clientes.html', clientes=clientes_formatados)
+
+@app.route('/editar_cliente/<int:id>', methods=['POST'])
+def editar_cliente(id):
+    if 'usuario_id' not in session: return redirect(url_for('login'))
+    nome, tel = request.form.get('nome').upper(), request.form.get('telefone')
+    limite, prazo = request.form.get('limite_credito'), int(request.form.get('prazo_pagamento') or 15)
+    conn = conectar_db()
+    cursor = obter_cursor(conn)
+    cursor.execute(f'UPDATE clientes SET nome={PL}, telefone={PL}, limite_fiado={PL}, prazo_pagamento={PL} WHERE id={PL} AND usuario_id={PL}', 
+                   (nome, tel, limite, prazo, id, session['usuario_id']))
+    conn.commit()
+    conn.close()
+    flash('Dados atualizados!', 'sucesso')
+    return redirect(url_for('clientes'))
+
+# --- FINANCEIRO E QUITAÇÕES ---
+@app.route('/financas')
+def financas():
+    if 'usuario_id' not in session: return redirect(url_for('login'))
+    return render_template('financas.html', resumo=obter_resumo_financeiro(session['usuario_id']))
+
+@app.route('/quitar_total/<int:cliente_id>', methods=['POST'])
+def quitar_total(cliente_id):
+    if 'usuario_id' not in session: return redirect(url_for('login'))
+    conn = conectar_db()
+    cursor = obter_cursor(conn)
+    cursor.execute(f"UPDATE vendas SET forma_pagamento='Pago' WHERE cliente_id={PL} AND forma_pagamento='Fiado' AND usuario_id={PL}", (cliente_id, session['usuario_id']))
+    cursor.execute(f"UPDATE clientes SET saldo_devedor=0 WHERE id={PL} AND usuario_id={PL}", (cliente_id, session['usuario_id']))
+    conn.commit()
+    conn.close()
+    flash('Dívida liquidada!', 'sucesso')
+    return redirect(url_for('detalhes_cliente', id=cliente_id))
+
+@app.route('/quitar_parcial/<int:cliente_id>', methods=['POST'])
+def quitar_parcial(cliente_id):
+    if 'usuario_id' not in session: return redirect(url_for('login'))
+    valor_pago = float(request.form.get('valor_pago', 0))
+    if valor_pago <= 0: return redirect(url_for('detalhes_cliente', id=cliente_id))
+    
+    conn = conectar_db()
+    cursor = obter_cursor(conn)
+    cursor.execute(f"SELECT id, valor_total FROM vendas WHERE cliente_id={PL} AND forma_pagamento='Fiado' AND usuario_id={PL} ORDER BY data ASC", (cliente_id, session['usuario_id']))
+    vendas = cursor.fetchall()
+    
+    restante = valor_pago
+    for v in vendas:
+        if restante <= 0: break
+        if restante >= v['valor_total']:
+            cursor.execute(f"UPDATE vendas SET forma_pagamento='Pago' WHERE id={PL}", (v['id'],))
+            restante -= v['valor_total']
+        else: break
+        
+    cursor.execute(f"UPDATE clientes SET saldo_devedor = saldo_devedor - {PL} WHERE id={PL} AND usuario_id={PL}", (valor_pago, cliente_id, session['usuario_id']))
+    cursor.execute(f"UPDATE clientes SET saldo_devedor = 0 WHERE id={PL} AND saldo_devedor < 0", (cliente_id,))
+    
+    conn.commit()
+    conn.close()
+    flash(f'Abatimento de R$ {valor_pago:.2f} realizado!', 'sucesso')
+    return redirect(url_for('detalhes_cliente', id=cliente_id))
+
+# --- PRODUTOS ---
+@app.route('/produtos', methods=['GET', 'POST'])
+def produtos():
+    if 'usuario_id' not in session: return redirect(url_for('login'))
+    usuario_id = session['usuario_id']
+    conn = conectar_db()
+    cursor = obter_cursor(conn)
+    
+    if request.method == 'POST':
+        nome, c, v, q = request.form.get('nome').strip().upper(), float(request.form.get('preco_custo')), float(request.form.get('preco_venda')), int(request.form.get('quantidade'))
+        cursor.execute(f'INSERT INTO produtos (nome, preco_custo, preco_venda, quantidade, usuario_id) VALUES ({PL}, {PL}, {PL}, {PL}, {PL})', (nome, c, v, q, usuario_id))
+        conn.commit()
+        flash('Produto cadastrado!', 'sucesso')
+        
+    cursor.execute(f'SELECT * FROM produtos WHERE usuario_id={PL} ORDER BY nome ASC', (usuario_id,))
+    produtos_lista = cursor.fetchall()
+    conn.close()
+    return render_template('produtos.html', produtos=produtos_lista)
+
+@app.route('/excluir_produto/<int:id>')
+def excluir_produto(id):
+    if 'usuario_id' not in session: return redirect(url_for('login'))
+    conn = conectar_db()
+    cursor = obter_cursor(conn)
+    cursor.execute(f'DELETE FROM produtos WHERE id={PL} AND usuario_id={PL}', (id, session['usuario_id']))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('produtos'))
 
 # --- VENDAS ---
 @app.route('/vendas', methods=['GET', 'POST'])
@@ -236,18 +325,183 @@ def vendas():
         v_fmt.append(d)
     return render_template('vendas.html', produtos=listar_produtos(u_id), clientes=listar_clientes(u_id), vendas=v_fmt)
 
+@app.route('/venda/<int:id>/comprovante')
+def comprovante_venda(id):
+    if 'usuario_id' not in session: return redirect(url_for('login'))
+    conn = conectar_db()
+    cursor = obter_cursor(conn)
+    
+    cursor.execute(f"""
+        SELECT v.*, c.nome as cliente_nome, u.nome as empresa_nome 
+        FROM vendas v 
+        LEFT JOIN clientes c ON v.cliente_id=c.id 
+        LEFT JOIN usuarios u ON v.usuario_id=u.id 
+        WHERE v.id={PL} AND v.usuario_id={PL}
+    """, (id, session['usuario_id']))
+    v = cursor.fetchone()
+    
+    if not v: 
+        conn.close()
+        return redirect(url_for('vendas'))
+        
+    cursor.execute(f"SELECT v.*, p.nome as produto_nome FROM vendas v LEFT JOIN produtos p ON v.produto_id=p.id WHERE v.data={PL} AND v.usuario_id={PL}", (v['data'], session['usuario_id']))
+    itens = cursor.fetchall()
+    conn.close()
+    return render_template('comprovante.html', venda=v, itens=itens, total=sum(i['valor_total'] for i in itens))
+
+# --- RELATÓRIOS ---
+@app.route('/relatorios_painel')
+def relatorios_painel():
+    if 'usuario_id' not in session: return redirect(url_for('login'))
+    return render_template('relatorios_menu.html')
+
+@app.route('/relatorios')
+def relatorios():
+    if 'usuario_id' not in session: return redirect(url_for('login'))
+    u_id, periodo = session['usuario_id'], request.args.get('periodo', 'dia')
+    hoje = datetime.now()
+    if periodo == 'dia': d_ini = hoje.strftime('%Y-%m-%d 00:00:00')
+    elif periodo == 'semana': d_ini = (hoje - timedelta(days=7)).strftime('%Y-%m-%d 00:00:00')
+    elif periodo == 'mes': d_ini = (hoje - timedelta(days=30)).strftime('%Y-%m-%d 00:00:00')
+    else: d_ini = (hoje - timedelta(days=365)).strftime('%Y-%m-%d 00:00:00')
+    
+    conn = conectar_db()
+    cursor = obter_cursor(conn)
+    cursor.execute(f"""
+        SELECT p.nome as produto_nome, SUM(v.quantidade) as quantidade_total, SUM(v.valor_total) as faturamento_total, p.preco_venda, p.preco_custo, MAX(v.data) as ultima_venda 
+        FROM vendas v JOIN produtos p ON v.produto_id = p.id 
+        WHERE v.usuario_id = {PL} AND v.data >= {PL} 
+        GROUP BY p.nome, p.preco_venda, p.preco_custo ORDER BY faturamento_total DESC
+    """, (u_id, d_ini))
+    rows = cursor.fetchall()
+    
+    v_agrup = []
+    for r in rows:
+        item = dict(r)
+        try: item['ultima_venda_formatada'] = datetime.strptime(str(item['ultima_venda'])[:19], '%Y-%m-%d %H:%M:%S').strftime('%d/%m/%Y')
+        except: item['ultima_venda_formatada'] = "---"
+        v_agrup.append(item)
+    t_fat = sum(v['faturamento_total'] for v in v_agrup)
+    t_custo = sum(v['quantidade_total'] * v['preco_custo'] for v in v_agrup)
+    conn.close()
+    return render_template('relatorios.html', vendas=v_agrup, periodo=periodo.upper(), total=t_fat, lucro=t_fat - t_custo)
+
+@app.route('/relatorio/inadimplentes')
+def relatorio_inadimplentes():
+    if 'usuario_id' not in session: return redirect(url_for('login'))
+    u_id = session['usuario_id']
+    conn = conectar_db()
+    cursor = obter_cursor(conn)
+    
+    cursor.execute(f'SELECT pix FROM usuarios WHERE id={PL}', (u_id,))
+    u_pix = cursor.fetchone()
+    c_pix = u_pix['pix'] if u_pix and u_pix['pix'] else "[CADASTRE SEU PIX]"
+    
+    cursor.execute(f"""
+        SELECT id, nome, telefone, prazo_pagamento, saldo_devedor, 
+        (SELECT MAX(data) FROM vendas WHERE cliente_id=clientes.id AND forma_pagamento='Fiado') as ultima_venda 
+        FROM clientes WHERE usuario_id={PL} AND saldo_devedor>0 ORDER BY saldo_devedor DESC
+    """, (u_id,))
+    dev_raw = cursor.fetchall()
+    
+    devedores, t_geral, maior = [], 0, 0
+    for d in dev_raw:
+        item = dict(d)
+        item['telefone_limpo'] = "".join(filter(str.isdigit, str(item['telefone']))) if item['telefone'] else ""
+        item['vencimento_br'], item['status_alerta'], item['dias_atraso'] = "---", "OK", 0
+        if item['ultima_venda']:
+            try:
+                dt_v = datetime.strptime(str(item['ultima_venda'])[:19], '%Y-%m-%d %H:%M:%S')
+                venc = dt_v + timedelta(days=int(item['prazo_pagamento'] or 15))
+                item['vencimento_br'], hoje = venc.strftime('%d/%m/%Y'), datetime.now()
+                if hoje > venc: item['status_alerta'], item['dias_atraso'] = 'CRÍTICO', (hoje - venc).days
+                elif (venc - hoje).days <= 2: item['status_alerta'] = 'PROXIMO'
+            except: pass
+        t_geral += item['saldo_devedor']
+        if item['saldo_devedor'] > maior: maior = item['saldo_devedor']
+        devedores.append(item)
+    conn.close()
+    return render_template('inadimplentes.html', devedores=devedores, chave_pix=c_pix, total_inadimplencia=t_geral, maior_divida=maior)
+
+# --- CONFIGURAÇÕES ---
+@app.route('/configuracoes', methods=['GET', 'POST'])
+def configuracoes():
+    if 'usuario_id' not in session: return redirect(url_for('login'))
+    u_id = session['usuario_id']
+    conn = conectar_db()
+    cursor = obter_cursor(conn)
+    
+    if request.method == 'POST':
+        nome, pix, arq = request.form.get('nome'), request.form.get('pix'), request.files.get('logo')
+        cursor.execute(f'SELECT logo FROM usuarios WHERE id={PL}', (u_id,))
+        user_at = cursor.fetchone()
+        fname = user_at['logo'] if user_at else None
+        
+        if arq and allowed_file(arq.filename):
+            fname = f"logo_user_{u_id}.{arq.filename.rsplit('.', 1)[1].lower()}"
+            arq.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+            
+        cursor.execute(f'UPDATE usuarios SET nome={PL}, logo={PL}, pix={PL} WHERE id={PL}', (nome, fname, pix, u_id))
+        conn.commit()
+        session['usuario_nome'], session['usuario_logo'] = nome, fname
+        flash('Configurações salvas!', 'sucesso')
+        
+    cursor.execute(f'SELECT * FROM usuarios WHERE id={PL}', (u_id,))
+    u_info = cursor.fetchone()
+    conn.close()
+    return render_template('configuracoes.html', user=u_info)
+
+@app.route('/alterar_senha', methods=['POST'])
+def alterar_senha():
+    if 'usuario_id' not in session: return redirect(url_for('login'))
+    nova, conf = request.form.get('nova_senha'), request.form.get('confirmar_senha')
+    if nova == conf and atualizar_senha_usuario(session['usuario_id'], nova): 
+        flash('Senha alterada!', 'sucesso')
+    else: 
+        flash('Erro na senha!', 'erro')
+    return redirect(url_for('configuracoes'))
+
 # --- ADMIN E PLANOS ---
+@app.route('/planos')
+def planos(): 
+    return render_template('planos.html')
+
 @app.route('/admin/assinantes')
 def admin_assinantes():
-    if session.get('usuario_email') != ADMIN_EMAIL.lower().strip(): return "Proibido", 403
+    if session.get('usuario_email') != ADMIN_EMAIL: return "Proibido", 403
     return render_template('admin_assinantes.html', assinantes=listar_todos_assinantes())
 
-# Funções restantes (excluir, editar, relatorios) seguem a mesma lógica...
-# Adicionei a chamada de criação de tabelas obrigatória para o deploy
+@app.route('/admin/cadastrar_assinante', methods=['POST'])
+def admin_cadastrar_assinante():
+    if session.get('usuario_email') != ADMIN_EMAIL: return "Proibido", 403
+    if cadastrar_usuario(request.form.get('nome'), request.form.get('email').lower().strip(), request.form.get('senha')): 
+        flash('Cadastrado!', 'sucesso')
+    return redirect(url_for('admin_assinantes'))
+
+@app.route('/admin/renovar/<int:id>/<int:dias>')
+def renovar(id, dias):
+    if session.get('usuario_email') != ADMIN_EMAIL: return "Proibido", 403
+    renovar_assinatura(id, dias)
+    return redirect(url_for('admin_assinantes'))
+
+@app.route('/admin/excluir/<int:id>')
+def admin_excluir(id):
+    if session.get('usuario_email') != ADMIN_EMAIL: return "Proibido", 403
+    excluir_usuario(id)
+    return redirect(url_for('admin_assinantes'))
+
+@app.route('/admin/resetar_senha/<int:id>')
+def admin_resetar_senha(id):
+    if session.get('usuario_email') != ADMIN_EMAIL: return "Proibido", 403
+    atualizar_senha_usuario(id, "123456")
+    flash('Resetada para 123456', 'sucesso')
+    return redirect(url_for('admin_assinantes'))
+
+# Mova a criação de tabelas para fora do IF
 try:
     criar_tabelas()
 except Exception as e:
-    print(f"Aviso na criação de tabelas: {e}")
+    print(f"Erro ao criar tabelas: {e}")
 
 if __name__ == '__main__':
     app.run(debug=True)
