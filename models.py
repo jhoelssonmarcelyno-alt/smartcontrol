@@ -1,7 +1,6 @@
 import sqlite3
 from datetime import datetime, timedelta
 import json
-import uuid
 import os
 
 # Define o caminho do banco de dados e garante que a pasta existe
@@ -32,6 +31,15 @@ def cadastrar_usuario(nome, email, senha):
     finally:
         conn.close()
 
+def cadastrar_cliente(nome, telefone, limite, prazo, usuario_id):
+    conn = conectar_db()
+    conn.execute('''
+        INSERT INTO clientes (nome, telefone, saldo_devedor, permite_fiado, limite_fiado, prazo_pagamento, usuario_id)
+        VALUES (?, ?, 0.0, 1, ?, ?, ?)
+    ''', (nome.upper(), telefone, limite, prazo, usuario_id))
+    conn.commit()
+    conn.close()     
+
 def listar_todos_assinantes():
     conn = conectar_db()
     assinantes = conn.execute('SELECT id, nome, email, plano, data_expiracao FROM usuarios').fetchall()
@@ -49,11 +57,16 @@ def renovar_assinatura(usuario_id, dias):
 def excluir_usuario(usuario_id):
     conn = conectar_db()
     try:
+        conn.execute("BEGIN TRANSACTION")
         conn.execute("DELETE FROM produtos WHERE usuario_id = ?", (usuario_id,))
         conn.execute("DELETE FROM clientes WHERE usuario_id = ?", (usuario_id,))
         conn.execute("DELETE FROM vendas WHERE usuario_id = ?", (usuario_id,))
         conn.execute("DELETE FROM usuarios WHERE id = ?", (usuario_id,))
         conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Erro ao excluir usuário: {e}")
+        raise e 
     finally:
         conn.close()
 
@@ -82,7 +95,7 @@ def obter_dados_assinante(usuario_id):
             return {'nome': user['nome'], 'plano': user['plano'], 'dias_restantes': 0}
     return None
 
-# --- FUNÇÕES DE NEGÓCIO (PRODUTOS E CLIENTES) ---
+# --- FUNÇÕES DE NEGÓCIO ---
 
 def cadastrar_produto(nome, preco_custo, preco_venda, quantidade, usuario_id):
     conn = conectar_db()
@@ -165,9 +178,14 @@ def processar_venda_completa(itens_json, cliente_id, forma_pagamento, usuario_id
 
             cursor.execute("UPDATE produtos SET quantidade = quantidade - ? WHERE id = ?", (qtd, p_id))
 
-        if forma_pagamento.lower() == 'fiado' and cliente_id:
-            cursor.execute("UPDATE clientes SET saldo_devedor = saldo_devedor + ?, data_ultima_compra = ? WHERE id = ?", 
-                           (total_venda_geral, data_agora, cliente_id))
+        # Se for FIADO, atualiza o saldo devedor do cliente
+        if forma_pagamento.strip().upper() == 'FIADO' and cliente_id:
+            cursor.execute("""
+                UPDATE clientes 
+                SET saldo_devedor = COALESCE(saldo_devedor, 0) + ?, 
+                    data_ultima_compra = ? 
+                WHERE id = ?
+            """, (total_venda_geral, data_agora, cliente_id))
         
         conn.commit()
         return True
@@ -177,34 +195,44 @@ def processar_venda_completa(itens_json, cliente_id, forma_pagamento, usuario_id
     finally:
         conn.close()
 
+# --- FUNÇÃO CORRIGIDA DO RESUMO ---
 def obter_resumo_financeiro(usuario_id):
     conn = conectar_db()
     conn.row_factory = sqlite3.Row
     
-    # 1. Busca Faturamento e Lucro das vendas realizadas
+    # 1. Faturamento e Lucro (Baseado em todas as vendas do usuário)
     res_vendas = conn.execute('''
         SELECT 
             COALESCE(SUM(valor_total), 0) as faturamento, 
-            COALESCE(SUM(lucro), 0) as lucro_total 
+            COALESCE(SUM(lucro), 0) as lucro 
         FROM vendas WHERE usuario_id = ?
     ''', (usuario_id,)).fetchone()
-    
-    # 2. Busca Valor de Estoque e Lucro Previsto (Venda - Custo) * Qtd
+
+    # 2. Capital em Estoque (O que tem na prateleira hoje)
     res_estoque = conn.execute('''
         SELECT 
-            COALESCE(SUM(preco_custo * quantidade), 0) as valor_estoque,
-            COALESCE(SUM((preco_venda - preco_custo) * quantidade), 0) as lucro_previsto
+            COALESCE(SUM(quantidade * preco_venda), 0) as valor_venda,
+            COALESCE(SUM(quantidade * (preco_venda - preco_custo)), 0) as lucro_previsto
         FROM produtos WHERE usuario_id = ?
     ''', (usuario_id,)).fetchone()
-    
+
+    # 3. TOTAL EM FIADO (Busca direto da tabela clientes - MAIS PRECISO)
+    res_fiado = conn.execute('''
+        SELECT COALESCE(SUM(saldo_devedor), 0) as total
+        FROM clientes 
+        WHERE usuario_id = ? AND saldo_devedor > 0
+    ''', (usuario_id,)).fetchone()
+
     conn.close()
 
     return {
-        "faturamento": res_vendas['faturamento'],
-        "lucro_total": res_vendas['lucro_total'],
-        "valor_estoque": res_estoque['valor_estoque'],
-        "lucro_previsto": res_estoque['lucro_previsto']
+        'faturamento': res_vendas['faturamento'],
+        'lucro': res_vendas['lucro'],
+        'valor_estoque': res_estoque['valor_venda'],
+        'lucro_previsto': res_estoque['lucro_previsto'],
+        'total_fiado': res_fiado['total']
     }
+
 # --- FINANCEIRO E CONFIGURAÇÕES ---
 
 def registrar_pagamento_cliente(cliente_id, valor_pago):
@@ -215,31 +243,37 @@ def registrar_pagamento_cliente(cliente_id, valor_pago):
 
 def obter_extrato_cliente(cliente_id, usuario_id):
     conn = conectar_db()
+    # Garantimos que o ID seja um inteiro para o banco não se confundir
+    c_id = int(cliente_id)
+    
+    # Buscamos as vendas formatando a data diretamente no SQL
     vendas = conn.execute('''
-        SELECT strftime('%d/%m/%Y %H:%M', v.data) as data_formatada, p.nome as produto, 
-               v.quantidade, v.valor_total, v.forma_pagamento
+        SELECT 
+            strftime('%d/%m/%Y %H:%M', v.data) as data_formatada, 
+            p.nome as produto, 
+            v.quantidade, 
+            v.valor_total, 
+            v.forma_pagamento
         FROM vendas v
         JOIN produtos p ON v.produto_id = p.id
-        WHERE v.cliente_id = ? AND v.usuario_id = ?
+        WHERE v.cliente_id = ? 
         ORDER BY v.data DESC
-    ''', (cliente_id, usuario_id)).fetchall()
+    ''', (c_id,)).fetchall()
+    
     conn.close()
     return vendas
 
 def atualizar_configuracao_fiado(cliente_id, permite, limite, usuario_id):
     conn = conectar_db()
     conn.execute('UPDATE clientes SET permite_fiado = ?, limite_fiado = ? WHERE id = ? AND usuario_id = ?', 
-                 (permite, limite, cliente_id, usuario_id))
+                  (permite, limite, cliente_id, usuario_id))
     conn.commit()
     conn.close()
-
-# --- CRIAÇÃO DAS TABELAS E MIGRAÇÕES ---
 
 def criar_tabelas():
     conn = conectar_db()
     cursor = conn.cursor()
     
-    # 1. Tabela de Usuários (com campo PIX)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -253,16 +287,13 @@ def criar_tabelas():
         )
     ''')
 
-    # MIGRAÇÃO AUTOMÁTICA: Adiciona 'pix' se a tabela já existir sem ele
     cursor.execute("PRAGMA table_info(usuarios)")
     colunas = [col[1] for col in cursor.fetchall()]
     if 'pix' not in colunas:
         try:
             cursor.execute('ALTER TABLE usuarios ADD COLUMN pix TEXT')
-            print("Migração: Coluna 'pix' adicionada com sucesso!")
         except: pass
     
-    # 2. Tabela de Produtos
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS produtos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -275,7 +306,6 @@ def criar_tabelas():
         )
     ''')
     
-    # 3. Tabela de Clientes
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS clientes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -290,7 +320,6 @@ def criar_tabelas():
         )
     ''')
     
-    # 4. Tabela de Vendas
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS vendas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -310,4 +339,3 @@ def criar_tabelas():
     
     conn.commit()
     conn.close()
-    print("Sistema: Banco de dados e tabelas prontos para uso!")

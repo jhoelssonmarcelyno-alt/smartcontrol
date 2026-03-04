@@ -1,17 +1,16 @@
 import sqlite3
 
 def adicionar_coluna():
-    conn = sqlite3.connect('database/smartcontrol.db')
+    conn = sqlite3.connect('banco.db') # Coloque o nome do seu arquivo .db aqui
     cursor = conn.cursor()
     try:
-        # Adiciona a coluna forma_pagamento que está faltando
-        cursor.execute('ALTER TABLE vendas ADD COLUMN forma_pagamento TEXT')
-        print("Coluna 'forma_pagamento' adicionada com sucesso!")
+        cursor.execute("ALTER TABLE clientes ADD COLUMN prazo_pagamento INTEGER DEFAULT 15")
+        conn.commit()
+        print("Coluna 'prazo_pagamento' adicionada com sucesso!")
     except sqlite3.OperationalError:
-        print("A coluna já existe ou a tabela não foi encontrada.")
-    
-    conn.commit()
-    conn.close()
+        print("A coluna já existe ou o nome do arquivo .db está incorreto.")
+    finally:
+        conn.close()
 
 if __name__ == "__main__":
     adicionar_coluna()

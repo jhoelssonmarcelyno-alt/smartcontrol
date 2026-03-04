@@ -1,5 +1,26 @@
 {% extends 'layout.html' %} {% block content %}
 <div class="animate-fadeIn space-y-8">
+  <div
+    class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4"
+  >
+    <div>
+      <h2
+        class="text-3xl font-black text-white uppercase italic tracking-tighter"
+      >
+        Ponto de <span class="text-blue-500">Vendas</span>
+      </h2>
+      <p class="text-slate-500 text-sm font-bold uppercase tracking-widest">
+        Realize pedidos e consulte o histórico
+      </p>
+    </div>
+    <a
+      href="{{ url_for('index') }}"
+      class="bg-blue-600 hover:bg-blue-500 text-white font-black py-3 px-8 rounded-2xl transition transform hover:scale-105 shadow-lg shadow-blue-900/40 border border-blue-400/20 uppercase text-xs tracking-widest flex items-center"
+    >
+      <i class="fas fa-arrow-left mr-2"></i> Voltar ao Menu
+    </a>
+  </div>
+
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
     <div
       class="lg:col-span-1 glass-card p-8 rounded-3xl shadow-xl border-white/5"
@@ -283,7 +304,6 @@
 <script>
   let carrinho = [];
 
-  // BUSCA PRODUTO
   function buscarProduto(valor) {
     const lista = document.getElementById("lista-busca-produto");
     const itens = lista.getElementsByClassName("item-produto");
@@ -304,7 +324,6 @@
     document.getElementById("lista-busca-produto").classList.add("hidden");
   }
 
-  // BUSCA CLIENTE
   function buscarCliente(valor) {
     const lista = document.getElementById("lista-busca-cliente");
     const itens = lista.getElementsByClassName("item-cliente");
@@ -330,6 +349,7 @@
     const preco = parseFloat(document.getElementById("input-busca-produto").getAttribute("data-preco"));
     const qtd = parseInt(document.getElementById("input-qtd").value);
     if (!id || isNaN(preco)) return alert("Selecione um produto da lista!");
+
     carrinho.push({ id, nome, preco, qtd, subtotal: preco * qtd });
     document.getElementById("input-busca-produto").value = "";
     document.getElementById("produto-selecionado-id").value = "";
@@ -356,12 +376,11 @@
     });
   }
 
-  function prepararEnvio() {
+  function prepararEnvio(event) {
     if (carrinho.length === 0) { alert("Adicione itens!"); return false; }
     return true;
   }
 
-  // FUNÇÕES DO MODAL
   function abrirDetalhes(data, cliente, pagamento) {
     document.getElementById('detalhe-data').innerText = data;
     document.getElementById('detalhe-cliente').innerText = cliente;
@@ -384,7 +403,6 @@
             </div>`;
     });
   }
-
   function fecharModal() {
     document.getElementById('modal-detalhes').classList.add('hidden');
   }

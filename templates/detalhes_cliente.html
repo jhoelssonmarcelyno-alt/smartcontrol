@@ -1,0 +1,202 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="animate-fadeIn pb-20">
+    <div class="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
+        <div>
+            <h2 class="text-3xl font-black uppercase italic text-white tracking-tighter">
+                Perfil do <span class="text-blue-500">Devedor</span>
+            </h2>
+            <p class="text-gray-400 text-sm font-medium uppercase tracking-widest italic">Análise detalhada de pendências</p>
+        </div>
+        
+        <div class="flex gap-3">
+            <button onclick="window.print()" class="bg-gray-100 hover:bg-white text-gray-900 font-black py-2.5 px-6 rounded-xl transition transform hover:scale-105 shadow-lg shadow-white/10 uppercase text-[10px] tracking-widest flex items-center">
+                <i class="fas fa-file-pdf mr-2 text-red-600"></i> Gerar PDF
+            </button>
+
+            <a href="{{ url_for('relatorio_inadimplentes') }}" class="bg-blue-600 hover:bg-blue-500 text-white font-black py-2.5 px-6 rounded-xl transition transform hover:scale-105 shadow-lg shadow-blue-900/40 border border-blue-400/20 uppercase text-[10px] tracking-widest flex items-center">
+                <i class="fas fa-arrow-left mr-2"></i> Voltar
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+        <div class="lg:col-span-1 bg-[#1e293b] rounded-3xl p-6 border border-gray-700 shadow-2xl">
+            <div class="flex flex-col items-center text-center">
+                <div class="w-24 h-24 bg-blue-600 rounded-full flex items-center justify-center text-4xl font-black text-white shadow-lg mb-4 border-4 border-blue-400/20">
+                    {{ cliente.nome[0] | upper }}
+                </div>
+                <h3 class="text-xl font-black text-white uppercase italic">{{ cliente.nome }}</h3>
+                <p class="text-gray-400 text-sm mb-8 font-bold">{{ cliente.telefone or 'Sem contato' }}</p>
+                
+                <div class="w-full space-y-3">
+                    <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest text-left ml-1">Régua de Cobrança</p>
+                    
+                    {% set tel_url = cliente.telefone|replace('(', '')|replace(')', '')|replace('-', '')|replace(' ', '') if cliente.telefone else '' %}
+                    
+                    <a href="https://wa.me/55{{ tel_url }}?text=Olá%20{{ cliente.nome }},%20tudo%20bem?%20Passando%20apenas%20para%20lembrar%20do%20seu%20débito%20pendente." 
+                       target="_blank" class="w-full flex items-center justify-between bg-green-600/10 hover:bg-green-600 text-green-500 hover:text-white px-5 py-3 rounded-xl border border-green-600/30 transition text-[10px] font-black uppercase tracking-wider">
+                       <span>1. Amigável</span> <i class="fab fa-whatsapp text-lg"></i>
+                    </a>
+
+                    <a href="https://wa.me/55{{ tel_url }}?text=Oi%20{{ cliente.nome }},%20precisamos%20acertar%20seu%20saldo%20devedor.%20Consegue%20fazer%20um%20PIX%20hoje?" 
+                       target="_blank" class="w-full flex items-center justify-between bg-orange-600/10 hover:bg-orange-600 text-orange-500 hover:text-white px-5 py-3 rounded-xl border border-orange-600/30 transition text-[10px] font-black uppercase tracking-wider">
+                       <span>2. Firme</span> <i class="fab fa-whatsapp text-lg"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-2 bg-[#1e293b] rounded-3xl p-8 border border-gray-700 shadow-2xl flex flex-col justify-between relative overflow-hidden">
+            <div class="absolute right-[-20px] top-[-20px] opacity-5">
+                <i class="fas fa-file-invoice-dollar text-[150px] text-white"></i>
+            </div>
+            
+            <div>
+                <p class="text-gray-400 text-xs font-bold uppercase tracking-widest">Saldo Devedor Total</p>
+                <h2 class="text-7xl font-black text-red-500 italic mt-2 tracking-tighter">
+                    R$ {{ "%.2f"|format(cliente.saldo_devedor or 0) }}
+                </h2>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-10">
+                <form action="/quitar_parcial/{{ cliente.id }}" method="POST" class="space-y-2">
+                    <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Abatimento Parcial</p>
+                    <div class="flex gap-2">
+                        <input type="number" step="0.01" name="valor_pago" placeholder="R$ 0,00" 
+                               class="bg-[#0f172a] border border-gray-600 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-blue-500 w-full font-bold" required>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white font-black px-6 py-3 rounded-xl text-[10px] uppercase transition shadow-lg shadow-blue-900/20">Abater</button>
+                    </div>
+                </form>
+                
+                <form id="formQuitarTudo" action="/quitar_total/{{ cliente.id }}" method="POST" class="flex flex-col justify-end">
+                    <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 mb-2">Liquidação</p>
+                    <button type="button" onclick="confirmarQuitacaoProfissional()" class="w-full bg-green-600 hover:bg-green-500 text-white font-black py-3.5 rounded-xl text-[10px] uppercase shadow-lg shadow-green-900/40 transition flex items-center justify-center">
+                        <i class="fas fa-check-double mr-2"></i> Quitar Tudo
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="space-y-6">
+        <h4 class="font-black text-gray-400 uppercase text-xs tracking-[0.2em] italic ml-2">Compras por Data</h4>
+        
+        {% for data, compras in compras_por_dia.items() %}
+        <div class="bg-[#1e293b] rounded-3xl border border-gray-700 shadow-xl overflow-hidden animate-fadeInUp accordion-item">
+            <div class="bg-gray-800/50 px-6 py-4 border-b border-gray-700 flex justify-between items-center cursor-pointer hover:bg-gray-800 transition-all accordion-header" 
+                 onclick="toggleAccordion(this)">
+                <div class="flex items-center gap-3">
+                    <div class="bg-blue-500/20 p-2 rounded-lg text-blue-400 transition-transform duration-300 arrow-icon">
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <span class="font-black text-white uppercase italic tracking-wider">{{ data }}</span>
+                </div>
+                <div class="text-right">
+                    <p class="text-[10px] font-black text-gray-500 uppercase">Subtotal do dia</p>
+                    <p class="text-sm font-black text-orange-400">R$ {{ "%.2f"|format(compras|sum(attribute='valor_total')) }}</p>
+                </div>
+            </div>
+
+            <div class="accordion-content transition-all duration-300 ease-in-out overflow-hidden">
+                <div class="divide-y divide-gray-700/50">
+                    {% for item in compras %}
+                    <div class="p-5 flex justify-between items-center hover:bg-white/5 transition group">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 bg-gray-800 rounded-xl flex items-center justify-center text-gray-500 group-hover:text-blue-400 transition border border-gray-700">
+                                <i class="fas fa-shopping-basket text-xs"></i>
+                            </div>
+                            <div>
+                                <h5 class="font-black text-white uppercase italic text-sm tracking-tight">{{ item.produto_nome }}</h5>
+                                <p class="text-[10px] text-gray-500 font-bold">Qtd: {{ item.quantidade }} unidades</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-red-500 font-black italic text-base">R$ {{ "%.2f"|format(item.valor_total) }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="bg-[#1e293b] rounded-3xl p-20 border border-gray-700 border-dashed text-center">
+            <i class="fas fa-ghost text-5xl text-gray-700 mb-4"></i>
+            <p class="text-gray-500 font-black uppercase italic tracking-widest text-sm">Nenhuma pendência encontrada</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fadeInUp { animation: fadeInUp 0.4s ease-out forwards; }
+    .accordion-content { max-height: 2000px; opacity: 1; }
+    .accordion-item.collapsed .accordion-content { max-height: 0; opacity: 0; }
+    .accordion-item.collapsed .arrow-icon { transform: rotate(-90deg); }
+
+    @media print {
+        nav, aside, button, form, .flex-col.md\:flex-row { display: none !important; }
+        body { background: white !important; color: black !important; }
+        .bg-\[#1e293b\] { background: white !important; border: 1px solid #ddd !important; border-radius: 8px !important; }
+        .text-white, .text-gray-400, .text-gray-500 { color: black !important; }
+        .bg-gray-800\/50 { background: #f9f9f9 !important; border-bottom: 1px solid #ddd !important; }
+        .accordion-content { max-height: none !important; opacity: 1 !important; }
+    }
+</style>
+
+<script>
+    function toggleAccordion(header) {
+        const item = header.closest('.accordion-item');
+        item.classList.toggle('collapsed');
+    }
+
+    function confirmarQuitacaoProfissional() {
+        const nomeCliente = "{{ cliente.nome | upper }}";
+        const valorTotal = "R$ {{ '%.2f'|format(cliente.saldo_devedor or 0) }}";
+        
+        // Verifica se o SweetAlert2 está carregado
+        if (typeof Swal === 'undefined') {
+            if(confirm(`Deseja quitar o débito total de ${nomeCliente} (${valorTotal})?`)) {
+                document.getElementById('formQuitarTudo').submit();
+            }
+            return;
+        }
+
+        Swal.fire({
+            title: 'Confirmar Liquidação Total?',
+            html: `
+                <div style="text-align: left; font-size: 14px; color: #cbd5e1; line-height: 1.6;">
+                    <p><strong>Ação:</strong> Baixa Total de Débitos</p>
+                    <p><strong>Cliente:</strong> ${nomeCliente}</p>
+                    <p><strong>Valor a Receber:</strong> <span style="color: #4ade80; font-weight: bold;">${valorTotal}</span></p>
+                    <hr style="border: 0; border-top: 1px solid #334155; margin: 15px 0;">
+                    <p style="font-size: 12px; color: #94a3b8;">Ao confirmar, todas as vendas fiado serão marcadas como 'PAGAS' e o saldo do cliente será zerado no sistema.</p>
+                </div>
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            background: '#1e293b',
+            color: '#f1f5f9',
+            confirmButtonColor: '#16a34a',
+            cancelButtonColor: '#475569',
+            confirmButtonText: 'Sim, Quitar Tudo!',
+            cancelButtonText: 'Cancelar',
+            customClass: {
+                popup: 'rounded-3xl border border-gray-700 shadow-2xl',
+                title: 'font-black uppercase italic tracking-tighter text-2xl',
+                confirmButton: 'rounded-xl font-black uppercase text-[10px] tracking-widest py-3 px-6',
+                cancelButton: 'rounded-xl font-black uppercase text-[10px] tracking-widest py-3 px-6'
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.getElementById('formQuitarTudo').submit();
+            }
+        });
+    }
+</script>
+{% endblock %}

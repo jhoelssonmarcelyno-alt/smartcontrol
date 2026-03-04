@@ -4,8 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SmartControl - Gestão Inteligente</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-dark@5/dark.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
     <style>
         :root {
@@ -56,6 +60,11 @@
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: var(--bg-deep); }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+
+        /* Ajuste para centralizar o SweetAlert */
+        .swal2-container {
+            z-index: 10000;
+        }
     </style>
 </head>
 
@@ -87,15 +96,14 @@
         <div class="container mx-auto px-6 py-4 flex justify-between items-center">
             <div class="flex items-center space-x-3 cursor-pointer" onclick="window.location.href='/'">
                 <div class="relative w-10 h-10 overflow-hidden rounded-xl shadow-lg border border-white/10">
-    {% if session.get('usuario_logo') %}
-        <img src="{{ url_for('static', filename='uploads/' + session['usuario_logo']) }}" class="w-full h-full object-cover">
-        <span class="absolute bg-black text-[8px]">{{ session['usuario_logo'] }}</span>
-    {% else %}
-        <div class="bg-blue-600 w-full h-full flex items-center justify-center">
-            <i class="fas fa-rocket text-white"></i>
-        </div>
-    {% endif %}
-</div>
+                    {% if session.get('usuario_logo') %}
+                        <img src="{{ url_for('static', filename='uploads/' + session['usuario_logo']) }}" class="w-full h-full object-cover">
+                    {% else %}
+                        <div class="bg-blue-600 w-full h-full flex items-center justify-center">
+                            <i class="fas fa-rocket text-white"></i>
+                        </div>
+                    {% endif %}
+                </div>
                 
                 <h1 class="text-xl font-black tracking-tighter uppercase italic text-white">
                     {% if session.get('usuario_nome') %}
@@ -163,7 +171,7 @@
     </footer>
 
     <script>
-        // Lógica dos Toasts (Alertas flutuantes)
+        // Lógica dos Toasts
         document.querySelectorAll('.toast-item').forEach(toast => {
             setTimeout(() => { toast.classList.remove('translate-x-full'); }, 100);
             setTimeout(() => {

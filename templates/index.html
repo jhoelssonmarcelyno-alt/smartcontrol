@@ -112,7 +112,7 @@
                     <i class="fas fa-hand-holding-usd text-red-500 group-hover:text-white text-xl"></i>
                 </div>
                 <p class="text-red-400 font-black uppercase text-[10px] z-10">Pendências</p>
-                <p class="text-white font-black text-sm z-10">R$ {{ "%.2f"|format(total_fiado) }}</p>
+                <p class="text-white font-black text-sm z-10">R$ {{ "%.2f"|format(resumo.total_fiado) }}</p>
                 <div class="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
             </a>
 
@@ -129,7 +129,12 @@
                     <i class="fas fa-file-invoice-dollar text-emerald-400 group-hover:text-white text-xl"></i>
                 </div>
                 <p class="text-white font-bold uppercase text-xs">Finanças</p>
-                <p class="text-emerald-400 font-black text-sm mt-1">R$ {{ "%.2f"|format(resumo.valor_estoque) }}</p>
+                <p class="text-emerald-400 font-black text-sm mt-1">
+                    Estoque: R$ {{ "%.2f"|format(resumo.valor_estoque) }}
+                </p>
+                <p class="text-white/50 text-[10px] uppercase font-bold">
+                    Fiados: R$ {{ "%.2f"|format(resumo.total_fiado) }}
+                </p>
             </a>
 
         </div>

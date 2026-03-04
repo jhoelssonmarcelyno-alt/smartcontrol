@@ -1,117 +1,143 @@
-{% extends 'layout.html' %} 
+{% extends 'layout.html' %}
 
 {% block content %}
-<div class="animate-fadeIn space-y-6">
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div class="animate-fadeIn">
+    <div class="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
         <div>
-            <h2 class="text-2xl font-black text-white uppercase tracking-tighter italic">
-                <i class="fas fa-exclamation-triangle text-red-500 mr-2"></i> 
+            <h2 class="text-3xl font-black uppercase italic text-white tracking-tighter">
                 Gestão de <span class="text-red-500">Inadimplentes</span>
             </h2>
-            <p class="text-slate-500 text-[10px] uppercase font-bold tracking-widest mt-1">Controle total de fiados e cobranças ativas</p>
+            <p class="text-gray-400 text-sm font-medium uppercase tracking-widest">Controle de prazos e cobranças pendentes</p>
         </div>
         
-        <div class="glass-card px-4 py-2 rounded-2xl border-emerald-500/20 flex items-center">
-            <i class="fas fa-key text-emerald-500 mr-3 text-xs"></i>
-            <div>
-                <p class="text-[9px] text-slate-500 uppercase font-black">Sua Chave PIX Atual</p>
-                <p class="text-white text-xs font-bold">{{ chave_pix if chave_pix else 'Não configurada' }}</p>
+        <a href="{{ url_for('index') }}" class="bg-blue-600 hover:bg-blue-500 text-white font-black py-2.5 px-6 rounded-xl transition transform hover:scale-105 shadow-lg shadow-blue-900/40 border border-blue-400/20 uppercase text-[10px] tracking-widest flex items-center">
+            <i class="fas fa-arrow-left mr-2"></i> Voltar ao Menu
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div class="bg-[#1e293b] p-6 rounded-3xl border border-red-500/30 shadow-xl relative overflow-hidden">
+            <div class="absolute right-[-10px] top-[-10px] opacity-10">
+                <i class="fas fa-hand-holding-usd text-7xl text-red-500"></i>
             </div>
+            <p class="text-gray-400 text-xs font-bold uppercase tracking-widest">Total em Atraso</p>
+            <h2 class="text-4xl font-black text-red-500 mt-1 italic">R$ {{ "%.2f"|format(total_inadimplencia or 0) }}</h2>
+        </div>
+        
+        <div class="bg-[#1e293b] p-6 rounded-3xl border border-orange-500/30 shadow-xl">
+            <p class="text-gray-400 text-xs font-bold uppercase tracking-widest">Clientes Devedores</p>
+            <h2 class="text-4xl font-black text-white mt-1 italic">{{ devedores|length }}</h2>
+        </div>
+
+        <div class="bg-[#1e293b] p-6 rounded-3xl border border-blue-500/30 shadow-xl">
+            <p class="text-gray-400 text-xs font-bold uppercase tracking-widest">Maior Dívida Única</p>
+            <h2 class="text-4xl font-black text-blue-400 mt-1 italic">R$ {{ "%.2f"|format(maior_divida or 0) }}</h2>
         </div>
     </div>
 
-    <div class="glass-card rounded-3xl border-white/5 shadow-2xl overflow-hidden bg-slate-900/50">
+    <div class="bg-[#1e293b] rounded-3xl border border-gray-700 shadow-2xl overflow-hidden">
+        <div class="p-6 border-b border-gray-700 bg-gray-800/30 flex justify-between items-center">
+            <h3 class="font-bold text-gray-300 uppercase text-sm tracking-widest">
+                <i class="fas fa-exclamation-triangle mr-2 text-orange-500"></i> Filtro de Pendências
+            </h3>
+            <div class="relative">
+                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs"></i>
+                <input type="text" id="buscaInadimplente" onkeyup="filtrarInadimplentes()" placeholder="Filtrar nome..." 
+                       class="bg-[#0f172a] border border-gray-600 rounded-lg py-1.5 pl-9 pr-4 text-white text-xs outline-none focus:border-red-500 transition w-48">
+            </div>
+        </div>
+
         <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="bg-white/5 text-slate-500 text-[10px] uppercase font-black tracking-widest">
-                        <th class="p-5 border-b border-white/5">Cliente / Última Compra</th>
-                        <th class="p-5 border-b border-white/5">Itens Detalhados (O que comprou)</th>
-                        <th class="p-5 border-b border-white/5 text-right">Saldo Devedor</th>
-                        <th class="p-5 border-b border-white/5 text-center">Cobrar via WhatsApp</th>
-                        <th class="p-5 border-b border-white/5 text-center">Baixar Valor</th>
+            <table class="w-full text-left" id="tabelaInadimplentes">
+                <thead class="bg-gray-800/50 text-gray-500 text-[10px] uppercase font-black tracking-widest">
+                    <tr>
+                        <th class="p-5">Cliente</th>
+                        <th class="p-5">Vencimento</th>
+                        <th class="p-5 text-center">Status / Atraso</th>
+                        <th class="p-5">Valor Devido</th>
+                        <th class="p-5 text-center">Ações</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-white/5">
-                    {% for d in devedores %}
-                    <tr class="hover:bg-white/[0.02] transition-all group">
+                <tbody class="text-gray-300 divide-y divide-white/5">
+                    {% for devedor in devedores %}
+                    <tr class="hover:bg-red-500/5 transition">
                         <td class="p-5">
-                            <p class="font-black text-white uppercase text-xs tracking-wide">{{ d.cliente_nome }}</p>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-red-500/10 text-red-400 mt-2">
-                                <i class="far fa-calendar-alt mr-1"></i> {{ d.data_formatada }}
+                            <div class="font-black text-white uppercase italic text-sm">{{ devedor.nome | default('Cliente sem nome') }}</div>
+                            <div class="text-[10px] text-gray-500">{{ devedor.telefone or 'Sem contato' }}</div>
+                        </td>
+                        
+                        <td class="p-5 text-xs">
+                            <div class="text-gray-500 text-[9px] font-black uppercase tracking-tighter">Previsão:</div>
+                            <span class="text-gray-300 font-bold">
+                                {{ devedor.vencimento_br | default('Pendente') }}
                             </span>
                         </td>
 
-                        <td class="p-5 max-w-xs">
-                            <div class="bg-black/20 p-3 rounded-xl border border-white/5">
-                                <p class="text-[10px] text-slate-400 leading-relaxed italic uppercase">
-                                    {{ d.detalhes_itens }}
-                                </p>
-                            </div>
+                        <td class="p-5 text-center">
+                            {% if devedor.status_alerta == 'CRÍTICO' %}
+                                <span class="bg-red-600 text-white text-[9px] px-3 py-1.5 rounded-full font-black animate-pulse flex items-center justify-center gap-1 mx-auto w-fit">
+                                    <i class="fas fa-exclamation-circle"></i> VENCIDO ({{ devedor.dias_atraso }}D)
+                                </span>
+                            {% elif devedor.status_alerta == 'PROXIMO' %}
+                                <span class="bg-orange-500 text-white text-[9px] px-3 py-1.5 rounded-full font-black flex items-center justify-center gap-1 mx-auto w-fit">
+                                    <i class="fas fa-clock"></i> VENCE LOGO
+                                </span>
+                            {% else %}
+                                <span class="bg-green-600/20 text-green-500 text-[9px] px-3 py-1.5 rounded-full font-black border border-green-600/30 flex items-center justify-center gap-1 mx-auto w-fit">
+                                    <i class="fas fa-check"></i> NO PRAZO
+                                </span>
+                            {% endif %}
                         </td>
 
-                        <td class="p-5 text-right">
-                            <p class="text-[10px] text-slate-500 uppercase font-black mb-1">Total em aberto</p>
-                            <p class="font-black text-red-500 text-xl tracking-tighter italic">
-                                R$ {{ "%.2f"|format(d.total_devido) }}
-                            </p>
-                        </td>
-
-                        <td class="p-5">
-                            <div class="flex flex-col space-y-2 w-40 mx-auto">
-                                {% set fone = d.cliente_telefone|replace('(', '')|replace(')', '')|replace('-', '')|replace(' ', '') %}
-                                
-                                {% set msg_leve = "Olá " ~ d.cliente_nome ~ "! Tudo bem? Passando para lembrar do seu em aberto de R$ " ~ "%.2f"|format(d.total_devido) ~ ". Quando puder, dá uma passadinha aqui! 😊" %}
-                                <a href="https://wa.me/55{{ fone }}?text={{ msg_leve|urlencode }}" target="_blank" 
-                                   class="flex items-center justify-center gap-2 bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all border border-blue-500/20">
-                                    <i class="fab fa-whatsapp text-xs"></i> Lembrete Leve
-                                </a>
-
-                                {% set msg_firme = "Olá " ~ d.cliente_nome ~ ". Constatamos um débito de R$ " ~ "%.2f"|format(d.total_devido) ~ " referente a: " ~ d.detalhes_itens ~ ". \n\nPode pagar via PIX se preferir: " ~ chave_pix %}
-                                <a href="https://wa.me/55{{ fone }}?text={{ msg_firme|urlencode }}" target="_blank" 
-                                   class="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl text-[9px] font-black uppercase shadow-lg shadow-emerald-900/20 transition-all">
-                                    <i class="fab fa-whatsapp text-xs"></i> Cobrar com PIX
-                                </a>
-                            </div>
+                        <td class="p-5 font-black">
+                            <span class="text-red-500 italic">
+                                R$ {{ "%.2f"|format(devedor.saldo_devedor | default(0)) }}
+                            </span>
                         </td>
 
                         <td class="p-5">
-                            <div class="flex flex-col space-y-3 w-32 mx-auto">
-                                
-                                <form action="{{ url_for('quitar_fiado', id=d.cliente_id) }}" method="POST" class="space-y-1">
-                                    <div class="relative">
-                                        <span class="absolute left-3 top-2 text-[10px] text-slate-500 font-bold">R$</span>
-                                        <input type="number" step="0.01" name="valor_pago" placeholder="0,00" 
-                                               class="w-full bg-white/5 border border-white/10 rounded-xl pl-8 pr-3 py-2 text-xs text-white font-bold focus:border-emerald-500 outline-none transition-all">
-                                    </div>
-                                    <button type="submit" class="w-full bg-white/10 hover:bg-white text-white hover:text-black py-1.5 rounded-lg text-[8px] font-black uppercase transition-all">
-                                        Abater Parcial
-                                    </button>
-                                </form>
+                            <div class="flex items-center justify-center space-x-2">
+                                <a href="https://wa.me/{{ devedor.telefone_limpo | default('') }}?text=Olá%20{{ devedor.nome | default('') }},%20notamos%20que%20o%20prazo%20do%20seu%20débito%20de%20R$%20{{ devedor.saldo_devedor | default(0) }}%20venceu.%20Como%20podemos%20acertar?" 
+                                   target="_blank" 
+                                   class="bg-green-600/10 text-green-500 hover:bg-green-600 hover:text-white p-2 rounded-lg transition text-xs font-black uppercase tracking-widest flex items-center" 
+                                   title="Cobrança Rápida">
+                                    <i class="fab fa-whatsapp mr-1 text-sm"></i> Cobrar
+                                </a>
 
-                                <div class="border-t border-white/5 my-1"></div>
-
-                                <form action="{{ url_for('dar_baixa_pagamento', id=d.cliente_id) }}" method="POST" 
-                                      onsubmit="return confirm('Deseja quitar TODA a dívida de {{ d.cliente_nome }}?')">
-                                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-xl text-[9px] font-black uppercase transition-all flex items-center justify-center gap-1 shadow-lg shadow-emerald-900/20">
-                                        <i class="fas fa-check-double"></i> Quitar Tudo
-                                    </button>
-                                </form>
+                                <a href="{{ url_for('detalhes_cliente', id=devedor.id) }}" 
+                                   class="bg-blue-600/10 text-blue-400 hover:bg-blue-600 hover:text-white p-2 rounded-lg transition shadow-lg shadow-blue-900/10"
+                                   title="Ver Detalhes">
+                                    <i class="fas fa-eye"></i>
+                                </a>
                             </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="p-10 text-center text-gray-500 italic uppercase font-bold tracking-widest">
+                            Excelente! Nenhum cliente inadimplente encontrado.
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-        
-        {% if not devedores %}
-        <div class="p-20 text-center">
-            <i class="fas fa-check-circle text-emerald-500 text-5xl mb-4 opacity-20"></i>
-            <p class="text-slate-500 font-black uppercase tracking-widest">Nenhum fiado pendente!</p>
-            <p class="text-slate-600 text-[10px] mt-1 italic">Sua lista de inadimplentes está vazia.</p>
-        </div>
-        {% endif %}
     </div>
 </div>
+
+<script>
+function filtrarInadimplentes() {
+    let input = document.getElementById("buscaInadimplente");
+    let filter = input.value.toUpperCase();
+    let table = document.getElementById("tabelaInadimplentes");
+    let tr = table.getElementsByTagName("tr");
+    for (let i = 1; i < tr.length; i++) {
+        let td = tr[i].getElementsByTagName("td")[0];
+        if (td) {
+            let txtValue = td.textContent || td.innerText;
+            tr[i].style.display = txtValue.toUpperCase().indexOf(filter) > -1 ? "" : "none";
+        }
+    }
+}
+</script>
 {% endblock %}

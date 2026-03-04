@@ -1,0 +1,169 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="animate-fadeIn">
+    <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+        <div>
+            <h2 class="text-3xl font-black uppercase italic text-white tracking-tighter">
+                Perfil do <span class="text-red-500">Devedor</span>
+            </h2>
+            <p class="text-gray-400 text-[10px] font-medium uppercase tracking-widest">Análise de crédito e histórico de pendências</p>
+        </div>
+        
+        <div class="flex gap-3">
+            <a href="javascript:history.back()" class="bg-gray-700 hover:bg-gray-600 text-white font-black py-2.5 px-6 rounded-xl transition uppercase text-[10px] tracking-widest flex items-center">
+                <i class="fas fa-arrow-left mr-2"></i> Voltar
+            </a>
+            <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-500 text-white font-black py-2.5 px-6 rounded-xl transition shadow-lg shadow-blue-900/40 uppercase text-[10px] tracking-widest">
+                <i class="fas fa-print mr-2"></i> Imprimir Extrato
+            </button>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-1 space-y-6">
+            <div class="bg-[#1e293b] p-8 rounded-3xl border border-gray-700 shadow-2xl relative overflow-hidden">
+                <div class="absolute right-[-20px] top-[-20px] opacity-5 text-9xl text-white">
+                    <i class="fas fa-user"></i>
+                </div>
+                
+                <div class="relative z-10 text-center">
+                    <div class="w-20 h-20 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20 shadow-inner">
+                        <i class="fas fa-user-secret text-3xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-black text-white uppercase italic tracking-tighter">{{ cliente.nome }}</h3>
+                    <p class="text-gray-500 text-sm font-bold mb-6">{{ cliente.telefone or 'Sem contato cadastrado' }}</p>
+                    
+                    <div class="space-y-3">
+                        <div class="bg-[#0f172a] p-4 rounded-2xl border border-red-500/20">
+                            <span class="text-[9px] text-gray-500 uppercase font-black block mb-1">Total em Aberto</span>
+                            <span class="text-3xl font-black text-red-500 italic">R$ {{ "%.2f"|format(cliente.saldo_devedor or 0) }}</span>
+                        </div>
+                        
+                        <div class="bg-[#0f172a] p-4 rounded-2xl border border-gray-700">
+                            <span class="text-[9px] text-gray-500 uppercase font-black block mb-1">Limite de Crédito</span>
+                            <span class="text-xl font-black text-gray-300">R$ {{ "%.2f"|format(cliente.limite_fiado or 0) }}</span>
+                        </div>
+                    </div>
+
+                    {% if cliente.telefone %}
+                    {% set tel_limpo = cliente.telefone|replace('(', '')|replace(')', '')|replace('-', '')|replace(' ', '') %}
+                    <a href="https://wa.me/55{{ tel_limpo }}?text=Olá%20{{ cliente.nome }},%20segue%20seu%20extrato.%20Total%20pendente:%20R$%20{{ "%.2f"|format(cliente.saldo_devedor) }}" 
+                       target="_blank"
+                       class="mt-6 w-full bg-green-600 hover:bg-green-500 text-white font-black py-4 rounded-2xl transition flex items-center justify-center gap-2 uppercase text-xs tracking-widest shadow-lg shadow-green-900/20">
+                        <i class="fab fa-whatsapp text-lg"></i> Enviar Cobrança
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-2 space-y-4">
+            <div class="flex items-center gap-2 mb-2">
+                <i class="fas fa-history text-red-500"></i>
+                <h3 class="text-white font-bold uppercase italic text-sm tracking-widest">Histórico de Compras</h3>
+            </div>
+
+            {% if extrato %}
+                {# O SEGREDO ESTÁ AQUI: Agrupamos por data_dia (sem a hora) #}
+                {% set vendas_agrupadas = extrato|groupby('data_dia') %}
+                
+                {% for data, compras in vendas_agrupadas %}
+                <details class="group bg-[#1e293b] border border-gray-700 rounded-2xl overflow-hidden transition-all duration-300 shadow-xl mb-3">
+                    <summary class="flex items-center justify-between p-5 cursor-pointer hover:bg-gray-800/50 list-none">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-red-500/20 w-8 h-8 flex items-center justify-center rounded-lg group-open:rotate-180 transition-transform duration-300">
+                                <i class="fas fa-chevron-down text-red-500 text-xs"></i>
+                            </div>
+                            <div>
+                                <span class="text-gray-500 text-[10px] font-black uppercase tracking-widest block font-sans">Data</span>
+                                <span class="text-white font-black italic tracking-tight text-lg">{{ data }}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="text-right">
+                            <span class="text-[9px] text-gray-500 uppercase font-black block font-sans">Total do Dia</span>
+                            <span class="text-red-500 font-black italic text-lg">
+                                R$ {{ "%.2f"|format(compras|sum(attribute='valor_total')) }}
+                            </span>
+                        </div>
+                    </summary>
+
+                    <div class="px-5 pb-5 animate-fadeIn bg-black/10">
+                        <div class="border-t border-gray-700 pt-4">
+                            <table class="w-full text-left">
+                                <thead class="text-gray-500 text-[9px] font-black uppercase tracking-widest">
+                                    <tr>
+                                        <th class="pb-2">Produto</th>
+                                        <th class="pb-2 text-center">Qtd</th>
+                                        <th class="pb-2 text-right">Valor</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-sm text-gray-300">
+                                    {% for item in compras %}
+                                    <tr class="border-b border-white/5 last:border-0 hover:bg-white/5 transition">
+                                        <td class="py-3 font-bold uppercase italic text-xs text-white">
+                                            {{ item.produto }}
+                                        </td>
+                                        <td class="py-3 text-center text-[10px] font-bold">
+                                            <span class="bg-gray-900 px-2 py-1 rounded text-gray-400">{{ item.quantidade }}x</span>
+                                        </td>
+                                        <td class="py-3 text-right font-black text-gray-300">
+                                            R$ {{ "%.2f"|format(item.valor_total) }}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </details>
+                {% endfor %}
+            {% else %}
+                <div class="bg-[#1e293b] p-20 text-center rounded-3xl border border-dashed border-gray-700">
+                    <i class="fas fa-folder-open text-gray-700 text-4xl mb-4 block"></i>
+                    <p class="text-gray-500 italic uppercase font-bold text-xs tracking-widest text-center">
+                        Nenhuma movimentação encontrada.
+                    </p>
+                </div>
+            {% endif %}
+
+            <div class="bg-red-500/10 border border-red-500/20 p-6 rounded-3xl flex justify-between items-center shadow-lg shadow-red-900/10 mt-6">
+                <div>
+                    <p class="text-[10px] text-red-500 uppercase font-black tracking-tighter">Status Geral</p>
+                    <p class="text-white text-xs font-bold uppercase italic">Débito Ativo</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-[10px] text-gray-500 uppercase font-black">Total Acumulado</p>
+                    <h4 class="text-3xl font-black text-red-500 italic tracking-tighter">R$ {{ "%.2f"|format(cliente.saldo_devedor or 0) }}</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Reset do details */
+    details summary::-webkit-details-marker { display: none; }
+    summary { list-style: none; }
+    
+    .animate-fadeIn {
+        animation: fadeIn 0.4s ease-out;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Ajuste para impressão */
+    @media print {
+        [class*="bg-\[#"], [class*="bg-\[#0f"] { background-color: white !important; color: black !important; }
+        .text-white { color: black !important; }
+        .flex, .grid { display: block !important; }
+        button, a, .fab, .fas { display: none !important; }
+        details { display: block !important; border: 1px solid #ccc !important; }
+        details[open] summary, details summary { background: #f0f0f0 !important; color: black !important; }
+    }
+</style>
+{% endblock %}
