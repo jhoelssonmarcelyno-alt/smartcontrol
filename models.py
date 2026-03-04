@@ -4,25 +4,23 @@ from psycopg2.extras import RealDictCursor
 from datetime import datetime, timedelta
 import json
 import os
-# Removi o 'import dj_database_url' porque ele não é necessário aqui
-from dotenv import load_dotenv
-
-# Carrega as variáveis (útil para rodar no seu PC)
-load_dotenv()
 
 # --- CONFIGURAÇÃO DE AMBIENTE ---
-# Puxa do Render ou do seu .env local
-DATABASE_URL = os.getenv('DATABASE_URL')
+# No Render, o DATABASE_URL já vem configurado. 
+# No PC, ele tentará usar o SQLite se não encontrar a variável.
+DATABASE_URL = os.environ.get('DATABASE_URL')
 
-# Ajuste crucial para o Neon.tech funcionar no Render
+# Ajuste crucial para o Neon.tech (PostgreSQL) funcionar no Render/Heroku
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 def conectar_db():
     if DATABASE_URL:
+        # Conexão para Produção (Render + Neon)
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
         return conn
     else:
+        # Conexão para Desenvolvimento Local (SQLite)
         DATABASE = 'database/smartcontrol.db'
         os.makedirs('database', exist_ok=True)
         conn = sqlite3.connect(DATABASE, timeout=10) 
@@ -269,7 +267,6 @@ def obter_resumo_financeiro(usuario_id):
 def registrar_pagamento_cliente(cliente_id, valor_pago):
     conn = conectar_db()
     cursor = obter_cursor(conn)
-    # Postgres não aceita MAX(0, ...), usamos uma lógica compatível
     cursor.execute(f'UPDATE clientes SET saldo_devedor = saldo_devedor - {PL} WHERE id = {PL}', (valor_pago, cliente_id))
     cursor.execute(f'UPDATE clientes SET saldo_devedor = 0 WHERE id = {PL} AND saldo_devedor < 0', (cliente_id,))
     conn.commit()
@@ -280,7 +277,6 @@ def obter_extrato_cliente(cliente_id, usuario_id):
     cursor = obter_cursor(conn)
     c_id = int(cliente_id)
     
-    # Adaptando a formatação de data para ser compatível
     if DATABASE_URL:
         sql_data = "to_char(v.data::timestamp, 'DD/MM/YYYY HH24:MI')"
     else:
